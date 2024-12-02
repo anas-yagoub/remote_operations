@@ -1,0 +1,287 @@
+<odoo>
+  <data>
+
+    <record id="view_res_config_settings_inherit" model="ir.ui.view">
+        <field name="name">stacafe_remote_operations.res.config.settings.inherit</field>
+        <field name="model">res.config.settings</field>
+        <field name="priority" eval="50"/>
+        <field name="inherit_id" ref="base_setup.res_config_settings_view_form"/>
+        <field name="arch" type="xml"> 
+            <xpath expr="//div[@id='companies']" position="after">
+                        <div  
+                            id="stacafe_remote_settings">
+                          <h2>Stacafe Remote Settings</h2>
+                  <div class="row mt16 o_settings_container" name="stacafe_remote_settings_container">
+                    <div class="col-xs-12 col-md-6 o_setting_box" >
+
+                        <div class="o_setting_right_pane mb8" >
+                            <label for="remote_type" string="Remote Type"/>
+                            <div class="content-group">
+                                <div class="mt16 row">
+                                    <field name="remote_type" class="ml16"/>
+                                </div>
+                            </div>
+                        </div>
+
+                            <div class="o_setting_right_pane mb8" attrs="{'invisible': [('remote_type', '!=', 'Main Database')]}"
+                                     >
+                            <label for="remote_type" string="View all database connections"/>
+                            <div class="content-group">
+                                <div class="mt16 row">
+                                    <button string="Database Connections" class="oe_highlight ml16" name="db_connection_action" type="object" style="width:150px;" ></button>
+                                </div>
+                            </div>
+                        </div>
+
+                                    <!-- Remote Server URL -->
+                                <div class="o_setting_right_pane mb8"
+                                    attrs="{'invisible': [('remote_type', '!=', 'Branch Database')]}"
+                                    >
+                          <label for="url" string="Remote Server URL"/>
+                          <div class="content-group">
+                              <div class="mt16 row">
+                                  <field name="url" class="ml16"/>
+                              </div>
+                          </div>
+                        </div>
+                        <!-- Remote Database Name -->
+                                <div class="o_setting_right_pane mb8"
+                                    attrs="{'invisible': [('remote_type', '!=', 'Branch Database')]}"
+                                    >
+                            <label for="db" string="Remote Database Name" />
+                            <div class="content-group">
+                                <div class="mt16 row">
+                                    <field name="db" class="ml16"/>
+                                </div>
+                            </div>
+                        </div>
+                        <!-- Username -->
+                                <div class="o_setting_right_pane mb8"
+                                    attrs="{'invisible': [('remote_type', '!=', 'Branch Database')]}"
+                                    >
+                            <label for="username" string="Username"/>
+                            <div class="content-group">
+                                <div class="mt16 row">
+                                    <field name="username" class="ml16"/>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-xs-12 col-md-6 o_setting_box" >
+
+                            <!-- Password -->
+                                <div class="o_setting_right_pane mb8"
+                                    attrs="{'invisible': [('remote_type', '!=', 'Branch Database')]}"
+                                    >
+                            <label for="password" string="Password"/>
+                            <div class="content-group">
+                                <div class="mt16 row">
+                                    <field name="password" class="ml16" password="True"/>
+                                </div>
+                            </div>
+                        </div>
+                            <!-- Default Partner Id -->
+                                <div class="o_setting_right_pane mb8"
+                                    attrs="{'invisible': [('remote_type', '!=', 'Branch Database')]}">
+                            <label for="record_id" string="Default Partner Id"/>
+                            <div class="content-group">
+                                <div class="mt16 row">
+                                    <field name="record_id" class="ml16"/>
+                                </div>
+                            </div>
+                        </div>
+                        
+                    </div>
+                  </div>
+                </div>
+            </xpath>
+
+        </field>
+    </record>
+
+    <record model="ir.ui.view" id="view_account_journal_inherit_form1">
+        <field name="name">inherit.account.journal</field>
+        <field name="model">account.journal</field>
+        <field name="inherit_id" ref="account.view_account_journal_form"/>
+        <field name="arch" type="xml">
+            <data>
+                <xpath expr="//field[@name='type']" position="after">
+                    <!-- <field name="code" invisible="1"/> -->
+                    <field name="dont_synchronize"/>
+                </xpath>
+            </data>
+        </field>
+	</record>
+
+    <record model="ir.ui.view" id="view_account_inherit_form2">
+        <field name="name">inherit.account</field>
+        <field name="model">account.account</field>
+        <field name="inherit_id" ref="account.view_account_form"/>
+        <field name="arch" type="xml">
+            <data>
+                <xpath expr="//field[@name='allowed_journal_ids']" position="after">
+                    <field name="substitute_account"/>
+                </xpath>
+            </data>
+        </field>
+	</record>
+
+    <!-- <record model="ir.ui.view" id="view_stock_location_inherit_form6">
+        <field name="name">inherit.stock.location</field>
+        <field name="model">stock.location</field>
+        <field name="inherit_id" ref="stock.view_location_form"/>
+        <field name="arch" type="xml">
+            <data>
+                <xpath expr="//field[@name='replenish_location']" position="after">
+                    <field name="default_virtual_location"/>
+                    <field name="default_destination"/>
+                </xpath>
+            </data>
+        </field>
+	</record> -->
+
+    <record model="ir.actions.act_window" id="client_type_action">
+        <field name="name">Database Connections</field>
+        <field name="res_model">db.connection</field>
+        <field name="view_mode">tree,form</field>
+    </record>
+
+    <!-- <record id="view_db_connection_tree" model="ir.ui.view">
+        <field name="name">db.connection.tree</field>
+        <field name="model">db.connection</field>
+        <field name="arch" type="xml">
+            <tree editable="bottom">
+                <field name="url" required="1"/>
+                <field name="db" required="1"/>
+                <field name="username" required="1"/>
+                <field name="password" required="1"/>
+                <field name="model" />
+                <field name="record_id" column_invisible="1"/>
+            </tree>
+        </field>
+    </record> -->
+
+    <record id="view_db_connection_form" model="ir.ui.view">
+        <field name="name">db.connection.form</field>
+        <field name="model">db.connection</field>
+        <field name="arch" type="xml">
+            <form>
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="url"/>
+                            <field name="db"/>
+                            <field name="username" />
+                            <field name="password"/>
+                            <field name="model"/>
+                            <field name="record_id" column_invisible="1"/>
+                        </group>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <!-- <record model="ir.ui.view" id="view_item_requisition_inherit_tree">
+        <field name="name">inherit.item.requisition1</field>
+        <field name="model">item.requisition</field>
+        <field name="inherit_id" ref="requisitions.item_requisition_tree"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='name']" position="after">
+                <field name="destination1"/>
+            </xpath>
+        </field>
+    </record>
+
+    <record model="ir.ui.view" id="view_item_requisition_inherit_form">
+        <field name="name">inherit.item.requisition1</field>
+        <field name="model">item.requisition</field>
+        <field name="inherit_id" ref="requisitions.item_requisition_form"/>
+        <field name="arch" type="xml">
+            <data>
+                <xpath expr="//button[@name='approve']" position="attributes">
+                    <attribute name="invisible">not remote_database_id or state != 'submitted'</attribute>
+                </xpath>
+                <xpath expr="//button[@name='reject']" position="attributes">
+                    <attribute name="invisible">not remote_database_id or state != 'submitted'</attribute>
+                </xpath>
+                <xpath expr="//button[@name='action_approve_item_requisition']" position="attributes">
+                    <attribute name="invisible">not remote_database_id or state != 'approved'</attribute>
+                </xpath>
+                <xpath expr="//field[@name='requested_by']" position="replace">
+                    <field name="requested_by" string='Requested By' invisible="not requested_by" readonly='1' force_save="1"/>
+                    <field name="requested_by_name" string='Requested By' invisible="not requested_by_name" readonly='1' force_save="1"/>
+                </xpath>
+                <xpath expr="//field[@name='user']" position="replace">
+                    <field name="user" invisible="not user" readonly='1' force_save="1"/>
+                    <field name="user_name" invisible="not user" readonly='1' force_save="1"/>
+                </xpath>
+                <xpath expr="//field[@name='delivery_date']" position="after">
+                    <field name="remote_record_id" invisible="1"/>
+                    <field name="remote_database_id" invisible="1"/>
+                </xpath>
+                <xpath expr="//field[@name='source']" position="replace">
+                    <field name='source1' required="state == 'approved'" readonly="state not in ('submitted','approved')" invisible="1" widget="selection"/>
+                </xpath>
+                <xpath expr="//field[@name='destination']" position="replace">
+                    <field name='destination1' readonly="state not in ('draft','submitted','approved') or remote_record_id" required="1" widget="selection"/>
+                </xpath>
+            </data>
+        </field>
+	</record> -->
+
+    <!-- Tree View -->
+    <!-- <record id="view_custom_stock_quant_tree" model="ir.ui.view">
+        <field name="name">custom.stock.quant.tree</field>
+        <field name="model">custom.stock.quant</field>
+        <field name="arch" type="xml">
+            <list string="Custom Stock Quants">
+                <field name="product_id"/>
+                <field name="date"/>
+                <field name="quantity" sum="Total Quantity"/>
+                <field name="product_uom_id"/>
+                <field name="unit_price" optional="hide"/>
+                <field name="total_value" optional="hide"/>
+                <field name="location_id"/>
+                <field name="destination_id"/>
+            </list>
+        </field>
+    </record> -->
+
+    <!-- Form View -->
+    <!-- <record id="view_custom_stock_quant_form" model="ir.ui.view">
+        <field name="name">custom.stock.quant.form</field>
+        <field name="model">custom.stock.quant</field>
+        <field name="arch" type="xml">
+            <form string="Custom Stock Quant">
+                <group>
+                    <field name="product_id"/>
+                    <field name="date"/>
+                    <field name="quantity"/>
+                    <field name="unit_price"/>
+                    <field name="total_value" readonly="1"/>
+                </group>
+                <group>
+                    <field name="location_id"/>
+                    <field name="destination_id"/>
+                </group>
+            </form>
+        </field>
+    </record> -->
+
+    <!-- <record id="action_custom_stock_quant" model="ir.actions.act_window">
+        <field name="name">Custom Stock Quants</field>
+        <field name="res_model">custom.stock.quant</field>
+        <field name="view_mode">list,form</field>
+        <field name="view_id" ref="view_custom_stock_quant_tree"/>
+        <field name="help" type="html">
+            <p>
+                Use this model to manage stock quants.
+            </p>
+        </field>
+    </record>
+
+    <menuitem id="menu_custom_stock_quant" name="Custom Stock Report" parent="stock.menu_stock_root" action="action_custom_stock_quant" sequence="21"/> -->
+
+  </data>
+</odoo>
