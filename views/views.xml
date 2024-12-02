@@ -6,11 +6,10 @@
         <field name="model">res.config.settings</field>
         <field name="priority" eval="50"/>
         <field name="inherit_id" ref="base_setup.res_config_settings_view_form"/>
-        <field name="arch" type="xml"> 
+        <field name="arch" type="xml">
             <xpath expr="//div[@id='companies']" position="after">
-                        <div  
-                            id="stacafe_remote_settings">
-                          <h2>Stacafe Remote Settings</h2>
+                <div class="app_settings_block" data-string="Stacafe Remote Settings" string="Stacafe Remote Settings" data-key="stacafe_remote_settings" id="stacafe_remote_settings">
+                  <h2>Stacafe Remote Settings</h2>
                   <div class="row mt16 o_settings_container" name="stacafe_remote_settings_container">
                     <div class="col-xs-12 col-md-6 o_setting_box" >
 
@@ -23,8 +22,7 @@
                             </div>
                         </div>
 
-                            <div class="o_setting_right_pane mb8" attrs="{'invisible': [('remote_type', '!=', 'Main Database')]}"
-                                     >
+                        <div class="o_setting_right_pane mb8" invisible="remote_type != 'Main Database'">
                             <label for="remote_type" string="View all database connections"/>
                             <div class="content-group">
                                 <div class="mt16 row">
@@ -33,10 +31,8 @@
                             </div>
                         </div>
 
-                                    <!-- Remote Server URL -->
-                                <div class="o_setting_right_pane mb8"
-                                    attrs="{'invisible': [('remote_type', '!=', 'Branch Database')]}"
-                                    >
+                        <!-- Remote Server URL -->
+                        <div class="o_setting_right_pane mb8" invisible="remote_type != 'Branch Database'">
                           <label for="url" string="Remote Server URL"/>
                           <div class="content-group">
                               <div class="mt16 row">
@@ -45,9 +41,7 @@
                           </div>
                         </div>
                         <!-- Remote Database Name -->
-                                <div class="o_setting_right_pane mb8"
-                                    attrs="{'invisible': [('remote_type', '!=', 'Branch Database')]}"
-                                    >
+                        <div class="o_setting_right_pane mb8" invisible="remote_type != 'Branch Database'">
                             <label for="db" string="Remote Database Name" />
                             <div class="content-group">
                                 <div class="mt16 row">
@@ -56,9 +50,7 @@
                             </div>
                         </div>
                         <!-- Username -->
-                                <div class="o_setting_right_pane mb8"
-                                    attrs="{'invisible': [('remote_type', '!=', 'Branch Database')]}"
-                                    >
+                        <div class="o_setting_right_pane mb8" invisible="remote_type != 'Branch Database'">
                             <label for="username" string="Username"/>
                             <div class="content-group">
                                 <div class="mt16 row">
@@ -68,11 +60,9 @@
                         </div>
                     </div>
                     <div class="col-xs-12 col-md-6 o_setting_box" >
-
-                            <!-- Password -->
-                                <div class="o_setting_right_pane mb8"
-                                    attrs="{'invisible': [('remote_type', '!=', 'Branch Database')]}"
-                                    >
+    
+                        <!-- Password -->
+                        <div class="o_setting_right_pane mb8" invisible="remote_type != 'Branch Database'">
                             <label for="password" string="Password"/>
                             <div class="content-group">
                                 <div class="mt16 row">
@@ -80,9 +70,8 @@
                                 </div>
                             </div>
                         </div>
-                            <!-- Default Partner Id -->
-                                <div class="o_setting_right_pane mb8"
-                                    attrs="{'invisible': [('remote_type', '!=', 'Branch Database')]}">
+                        <!-- Default Partner Id -->
+                        <div class="o_setting_right_pane mb8" invisible="remote_type != 'Branch Database'">
                             <label for="record_id" string="Default Partner Id"/>
                             <div class="content-group">
                                 <div class="mt16 row">
@@ -126,7 +115,7 @@
         </field>
 	</record>
 
-    <!-- <record model="ir.ui.view" id="view_stock_location_inherit_form6">
+    <record model="ir.ui.view" id="view_stock_location_inherit_form6">
         <field name="name">inherit.stock.location</field>
         <field name="model">stock.location</field>
         <field name="inherit_id" ref="stock.view_location_form"/>
@@ -138,28 +127,28 @@
                 </xpath>
             </data>
         </field>
-	</record> -->
+	</record>
 
     <record model="ir.actions.act_window" id="client_type_action">
         <field name="name">Database Connections</field>
         <field name="res_model">db.connection</field>
-        <field name="view_mode">tree,form</field>
+        <field name="view_mode">list,form</field>
     </record>
 
-    <!-- <record id="view_db_connection_tree" model="ir.ui.view">
+    <record id="view_db_connection_tree" model="ir.ui.view">
         <field name="name">db.connection.tree</field>
         <field name="model">db.connection</field>
         <field name="arch" type="xml">
-            <tree editable="bottom">
+            <list editable="bottom">
                 <field name="url" required="1"/>
                 <field name="db" required="1"/>
                 <field name="username" required="1"/>
                 <field name="password" required="1"/>
                 <field name="model" />
                 <field name="record_id" column_invisible="1"/>
-            </tree>
+            </list>
         </field>
-    </record> -->
+    </record>
 
     <record id="view_db_connection_form" model="ir.ui.view">
         <field name="name">db.connection.form</field>
@@ -182,7 +171,7 @@
         </field>
     </record>
 
-    <!-- <record model="ir.ui.view" id="view_item_requisition_inherit_tree">
+    <record model="ir.ui.view" id="view_item_requisition_inherit_tree">
         <field name="name">inherit.item.requisition1</field>
         <field name="model">item.requisition</field>
         <field name="inherit_id" ref="requisitions.item_requisition_tree"/>
@@ -228,10 +217,10 @@
                 </xpath>
             </data>
         </field>
-	</record> -->
+	</record>
 
     <!-- Tree View -->
-    <!-- <record id="view_custom_stock_quant_tree" model="ir.ui.view">
+    <record id="view_custom_stock_quant_tree" model="ir.ui.view">
         <field name="name">custom.stock.quant.tree</field>
         <field name="model">custom.stock.quant</field>
         <field name="arch" type="xml">
@@ -246,10 +235,10 @@
                 <field name="destination_id"/>
             </list>
         </field>
-    </record> -->
+    </record>
 
     <!-- Form View -->
-    <!-- <record id="view_custom_stock_quant_form" model="ir.ui.view">
+    <record id="view_custom_stock_quant_form" model="ir.ui.view">
         <field name="name">custom.stock.quant.form</field>
         <field name="model">custom.stock.quant</field>
         <field name="arch" type="xml">
@@ -267,9 +256,9 @@
                 </group>
             </form>
         </field>
-    </record> -->
+    </record>"
 
-    <!-- <record id="action_custom_stock_quant" model="ir.actions.act_window">
+    <record id="action_custom_stock_quant" model="ir.actions.act_window">
         <field name="name">Custom Stock Quants</field>
         <field name="res_model">custom.stock.quant</field>
         <field name="view_mode">list,form</field>
@@ -281,7 +270,7 @@
         </field>
     </record>
 
-    <menuitem id="menu_custom_stock_quant" name="Custom Stock Report" parent="stock.menu_stock_root" action="action_custom_stock_quant" sequence="21"/> -->
+    <menuitem id="menu_custom_stock_quant" name="Custom Stock Report" parent="stock.menu_stock_root" action="action_custom_stock_quant" sequence="21"/>
 
   </data>
 </odoo>
