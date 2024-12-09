@@ -24,7 +24,7 @@ class ItemRequisition(models.Model):
     @api.model
     def _default_source_location(self):
         config_parameters = self.env['ir.config_parameter'].sudo()
-        remote_type = config_parameters.get_param('stacafe_remote_operations.remote_type')
+        remote_type = config_parameters.get_param('remote_operations.remote_type')
 
         if remote_type == 'Branch Database':
             # Search for a virtual location marked as the default_virtual_location
@@ -42,7 +42,7 @@ class ItemRequisition(models.Model):
     @api.model
     def _default_destination_location(self):
         config_parameters = self.env['ir.config_parameter'].sudo()
-        remote_type = config_parameters.get_param('stacafe_remote_operations.remote_type')
+        remote_type = config_parameters.get_param('remote_operations.remote_type')
 
         if remote_type == 'Branch Database':
             # Search for a virtual location marked as the default destination location
@@ -64,17 +64,17 @@ class ItemRequisition(models.Model):
     def send_requisition_to_remote(self):
         # Get configuration parameters
         config_parameters = self.env['ir.config_parameter'].sudo()
-        remote_type = config_parameters.get_param('stacafe_remote_operations.remote_type')
+        remote_type = config_parameters.get_param('remote_operations.remote_type')
 
         if remote_type != 'Branch Database':
             return True
     
-        url = config_parameters.get_param('stacafe_remote_operations.url')
+        url = config_parameters.get_param('remote_operations.url')
         base_url = config_parameters.get_param('web.base.url')
-        db = config_parameters.get_param('stacafe_remote_operations.db')
-        username = config_parameters.get_param('stacafe_remote_operations.username')
-        password = config_parameters.get_param('stacafe_remote_operations.password')
-        partner_id = config_parameters.get_param('stacafe_remote_operations.record_id')
+        db = config_parameters.get_param('remote_operations.db')
+        username = config_parameters.get_param('remote_operations.username')
+        password = config_parameters.get_param('remote_operations.password')
+        partner_id = config_parameters.get_param('remote_operations.record_id')
 
         # Validate settings
         if not all([url, db, username, password, partner_id]):
@@ -138,7 +138,7 @@ class ItemRequisition(models.Model):
 
         # Check if the current database is a branch database
         remote_db_connection_id = False
-        if self.env['ir.config_parameter'].sudo().get_param('stacafe_remote_operations.remote_type') == 'Branch Database':
+        if self.env['ir.config_parameter'].sudo().get_param('remote_operations.remote_type') == 'Branch Database':
             remote_db_connection_id = self._get_remote_id(models, db, uid, password, 'db.connection', 'url', current_url)
 
         requisition_vals = {
@@ -168,7 +168,7 @@ class ItemRequisition(models.Model):
         super(ItemRequisition, self).approve()
 
         config_parameters = self.env['ir.config_parameter'].sudo()
-        remote_type = config_parameters.get_param('stacafe_remote_operations.remote_type')
+        remote_type = config_parameters.get_param('remote_operations.remote_type')
         
         if remote_type != 'Main Database':
             return True
@@ -215,7 +215,7 @@ class ItemRequisition(models.Model):
     def action_approve_item_requisition(self):
         # Check if the database is configured as "Branch Database" or "Main Database"
         config_parameters = self.env['ir.config_parameter'].sudo()
-        remote_type = config_parameters.get_param('stacafe_remote_operations.remote_type')
+        remote_type = config_parameters.get_param('remote_operations.remote_type')
 
         if self.order_line:
             for data in self:

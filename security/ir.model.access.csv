@@ -1,4 +1,2 @@
 id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
 access_db_connection,Database Connection,model_db_connection,base.group_system,1,1,1,1
-access_custom_stock_quant,Custom Stock Quant,model_custom_stock_quant,base.group_user,1,1,1,1
-access_db_connection_rm,Database Connection,model_db_connection,requisitions.item_group_manager,1,1,0,0

@@ -22,7 +22,7 @@
         <field name="arch" type="xml">
             <xpath expr="//div[@id='companies']" position="after">
                 <div class="app_settings_block" data-string="Stacafe Remote Settings" string="Stacafe Remote Settings" data-key="stacafe_remote_settings" id="stacafe_remote_settings">
-                  <h2>Stacafe Remote Settings</h2>
+                  <h2>Remote Settings</h2>
                   <div class="row mt16 o_settings_container" name="stacafe_remote_settings_container">
                     <div class="col-xs-12 col-md-6 o_setting_box" >
 
@@ -128,7 +128,7 @@
         </field>
 	</record>
 
-    <record model="ir.ui.view" id="view_stock_location_inherit_form6">
+    <!-- <record model="ir.ui.view" id="view_stock_location_inherit_form6">
         <field name="name">inherit.stock.location</field>
         <field name="model">stock.location</field>
         <field name="inherit_id" ref="stock.view_location_form"/>
@@ -140,7 +140,7 @@
                 </xpath>
             </data>
         </field>
-	</record>
+	</record> -->
 
     <record model="ir.actions.act_window" id="client_type_action">
         <field name="name">Database Connections</field>
@@ -184,7 +184,7 @@
         </field>
     </record>
 
-    <record model="ir.ui.view" id="view_item_requisition_inherit_tree">
+    <!-- <record model="ir.ui.view" id="view_item_requisition_inherit_tree">
         <field name="name">inherit.item.requisition1</field>
         <field name="model">item.requisition</field>
         <field name="inherit_id" ref="requisitions.item_requisition_tree"/>
@@ -230,10 +230,10 @@
                 </xpath>
             </data>
         </field>
-	</record>
+	</record> -->
 
         <!-- Tree View -->
-    <record id="view_custom_stock_quant_tree" model="ir.ui.view">
+    <!-- <record id="view_custom_stock_quant_tree" model="ir.ui.view">
         <field name="name">custom.stock.quant.tree</field>
         <field name="model">custom.stock.quant</field>
         <field name="arch" type="xml">
@@ -248,10 +248,10 @@
                 <field name="destination_id"/>
             </list>
         </field>
-    </record>
+    </record> -->
 
         <!-- Form View -->
-    <record id="view_custom_stock_quant_form" model="ir.ui.view">
+    <!-- <record id="view_custom_stock_quant_form" model="ir.ui.view">
         <field name="name">custom.stock.quant.form</field>
         <field name="model">custom.stock.quant</field>
         <field name="arch" type="xml">
@@ -283,7 +283,7 @@
         </field>
     </record>
 
-    <menuitem id="menu_custom_stock_quant" name="Custom Stock Report" parent="stock.menu_stock_root" action="action_custom_stock_quant" sequence="21"/>
+    <menuitem id="menu_custom_stock_quant" name="Custom Stock Report" parent="stock.menu_stock_root" action="action_custom_stock_quant" sequence="21"/> -->
 
   </data>
 </odoo>
