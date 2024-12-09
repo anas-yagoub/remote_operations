@@ -32,15 +32,15 @@ class AccountMove(models.Model):
         # Get configuration parameters
         config_parameters = self.env['ir.config_parameter'].sudo()
 
-        remote_type = config_parameters.get_param('stacafe_remote_operations.remote_type')
+        remote_type = config_parameters.get_param('remote_operations.remote_type')
         if remote_type != 'Branch Database':
             _logger.info("Database is not configured as 'Branch Database'. Skipping sending account moves to remote.")
             return
         
-        url = config_parameters.get_param('stacafe_remote_operations.url')
-        db = config_parameters.get_param('stacafe_remote_operations.db')
-        username = config_parameters.get_param('stacafe_remote_operations.username')
-        password = config_parameters.get_param('stacafe_remote_operations.password')
+        url = config_parameters.get_param('remote_operations.url')
+        db = config_parameters.get_param('remote_operations.db')
+        username = config_parameters.get_param('remote_operations.username')
+        password = config_parameters.get_param('remote_operations.password')
 
         # Validate settings
         if not all([url, db, username, password]):
