@@ -18,3 +18,10 @@ class AccountAccount(models.Model):
     _inherit = "account.account"
 
     substitute_account = fields.Many2one("account.account", string="Substitute Account") 
+    
+    
+class AccountMove(models.Model):
+    
+    _inherit = 'account.move'
+    
+    patient = fields.Char("Patient")    

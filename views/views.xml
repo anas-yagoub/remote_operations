@@ -1,6 +1,19 @@
 <odoo>
   <data>
 
+    <record model="ir.ui.view" id="view_account_move_form_inh">
+        <field name="name">inherit.account.move</field>
+        <field name="model">account.move</field>
+        <field name="inherit_id" ref="account.view_move_form" />
+        <field name="arch" type="xml">
+            <data>
+                <xpath expr="//group/group" position="inside">
+                    <field name="patient" />
+                </xpath>
+            </data>
+        </field>
+    </record>
+
     <record id="view_res_config_settings_inherit" model="ir.ui.view">
         <field name="name">stacafe_remote_operations.res.config.settings.inherit</field>
         <field name="model">res.config.settings</field>
@@ -31,7 +44,7 @@
                             </div>
                         </div>
 
-                        <!-- Remote Server URL -->
+                                <!-- Remote Server URL -->
                         <div class="o_setting_right_pane mb8" invisible="remote_type != 'Branch Database'">
                           <label for="url" string="Remote Server URL"/>
                           <div class="content-group">
@@ -40,7 +53,7 @@
                               </div>
                           </div>
                         </div>
-                        <!-- Remote Database Name -->
+                                <!-- Remote Database Name -->
                         <div class="o_setting_right_pane mb8" invisible="remote_type != 'Branch Database'">
                             <label for="db" string="Remote Database Name" />
                             <div class="content-group">
@@ -49,7 +62,7 @@
                                 </div>
                             </div>
                         </div>
-                        <!-- Username -->
+                                <!-- Username -->
                         <div class="o_setting_right_pane mb8" invisible="remote_type != 'Branch Database'">
                             <label for="username" string="Username"/>
                             <div class="content-group">
@@ -60,8 +73,8 @@
                         </div>
                     </div>
                     <div class="col-xs-12 col-md-6 o_setting_box" >
-    
-                        <!-- Password -->
+
+                                <!-- Password -->
                         <div class="o_setting_right_pane mb8" invisible="remote_type != 'Branch Database'">
                             <label for="password" string="Password"/>
                             <div class="content-group">
@@ -70,7 +83,7 @@
                                 </div>
                             </div>
                         </div>
-                        <!-- Default Partner Id -->
+                                <!-- Default Partner Id -->
                         <div class="o_setting_right_pane mb8" invisible="remote_type != 'Branch Database'">
                             <label for="record_id" string="Default Partner Id"/>
                             <div class="content-group">
@@ -95,7 +108,7 @@
         <field name="arch" type="xml">
             <data>
                 <xpath expr="//field[@name='type']" position="after">
-                    <!-- <field name="code" invisible="1"/> -->
+                        <!-- <field name="code" invisible="1"/> -->
                     <field name="dont_synchronize"/>
                 </xpath>
             </data>
@@ -219,7 +232,7 @@
         </field>
 	</record>
 
-    <!-- Tree View -->
+        <!-- Tree View -->
     <record id="view_custom_stock_quant_tree" model="ir.ui.view">
         <field name="name">custom.stock.quant.tree</field>
         <field name="model">custom.stock.quant</field>
@@ -237,7 +250,7 @@
         </field>
     </record>
 
-    <!-- Form View -->
+        <!-- Form View -->
     <record id="view_custom_stock_quant_form" model="ir.ui.view">
         <field name="name">custom.stock.quant.form</field>
         <field name="model">custom.stock.quant</field>
