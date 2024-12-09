@@ -9,79 +9,24 @@ from pytz import timezone
 import logging
 _logger = logging.getLogger(__name__)
 
-class PosSession(models.Model):
-    _inherit = 'pos.session'
 
+
+class AccountMove(models.Model):
+    
+    _inherit = 'account.move'
+    
     posted_to_remote = fields.Boolean("Posted to remote")
-
-    def action_pos_session_closing_control(self, balancing_account=False, amount_to_balance=0, bank_payment_method_diffs=None):
-        super(PosSession, self).action_pos_session_closing_control(balancing_account, amount_to_balance, bank_payment_method_diffs)
-        self.send_account_moves_to_remote()
-        self._create_custom_stock_quant_in_remote()
-
-    def _create_custom_stock_quant_in_remote(self):
-        # Check if the database is configured as "Branch Database"
-        config_parameters = self.env['ir.config_parameter'].sudo()
-        remote_type = config_parameters.get_param('stacafe_remote_operations.remote_type')
-
-        if remote_type == 'Branch Database':
-
-            url = config_parameters.get_param('stacafe_remote_operations.url')
-            db = config_parameters.get_param('stacafe_remote_operations.db')
-            username = config_parameters.get_param('stacafe_remote_operations.username')
-            password = config_parameters.get_param('stacafe_remote_operations.password')
-
-            if not all([url, db, username, password]):
-                raise ValidationError("Remote server settings must be fully configured (URL, DB, Username, Password)")
-
-            try:
-                # Create XML-RPC connection to the remote database
-                common = xmlrpc.client.ServerProxy('{}/xmlrpc/2/common'.format(url))
-                uid = common.authenticate(db, username, password, {})
-                if not uid:
-                    raise ValidationError("Failed to authenticate with the remote server.")
-                
-                models = xmlrpc.client.ServerProxy('{}/xmlrpc/2/object'.format(url))
-
-                # Fetch all pickings associated with this POS session
-                pickings = self.env['stock.picking'].search([('pos_session_id', '=', self.id)])
-
-                # Create custom.stock.quant records in the remote database
-                for picking in pickings:
-                    for move in picking.move_ids_without_package:
-
-                         # Fetch the standard_price from the remote database using product name
-                        product_data = models.execute_kw(db, uid, password, 'product.product', 'search_read', [
-                            [('name', '=', move.product_id.name)]
-                        ], {'fields': ['id','standard_price'], 'limit': 1})
-                        
-                        if not product_data:
-                            raise ValidationError(f"Product {move.product_id.name} not found in the remote database.")
-
-                        remote_product_id = product_data[0]['id']
-                        remote_standard_price = product_data[0]['standard_price']
-                        product_uom = self._get_remote_id(models, db, uid, password, 'uom.uom', 'name', move.product_uom.name)
-
-
-                        # Fetch remote location IDs
-                        remote_location_id = self._get_remote_id(models, db, uid, password, 'stock.location', 'name', move.location_id.name)
-                        remote_location_dest_id = self._get_remote_id(models, db, uid, password, 'stock.location', 'name', move.location_dest_id.name)
-
-                        custom_quant_vals = {
-                            'product_id': int(remote_product_id),
-                            'product_uom_id': product_uom,
-                            'date': date.today(),
-                            'quantity': -move.product_uom_qty,  # Quantity should be negative since it's a sale
-                            'unit_price': remote_standard_price,  # Use the standard price or another logic
-                            'location_id': remote_location_id,
-                            'destination_id': remote_location_dest_id,
-                        }
-
-                        # Create the custom.stock.quant in the remote database
-                        models.execute_kw(db, uid, password, 'custom.stock.quant', 'create', [custom_quant_vals])
-
-            except Exception as e:
-                raise ValidationError("Error while creating custom stock quant in remote database: {}".format(e))
+    
+    @api.model
+    def action_send_account_moves_to_remote_cron(self):
+        # Find all account.move records that are not posted to remote
+        records_to_send = self.search([('posted_to_remote', '=', False)])
+        for rec in records_to_send:
+            print("Processing record: ", rec.id)
+            rec.send_account_moves_to_remote()
+            rec.posted_to_remote = True
+            print("Done processing record: ", rec.id)
+    
 
     def send_account_moves_to_remote(self):
         # Get configuration parameters
@@ -108,7 +53,8 @@ class PosSession(models.Model):
             models = xmlrpc.client.ServerProxy('{}/xmlrpc/2/object'.format(url))
 
             # Get related account.move records
-            account_moves = self._get_related_account_moves()
+            # account_moves = self._get_related_account_moves()
+            account_moves = self.env['account.move'].search([])
             for move in account_moves:
                 if move.journal_id.dont_synchronize:
                     continue
@@ -138,7 +84,8 @@ class PosSession(models.Model):
             currency_id = self._get_remote_id_if_set(models, db, uid, password, 'res.currency', 'name', line.currency_id)
             
              # Prepare the analytic distribution
-            # analytic_distribution = self._prepare_analytic_distribution(models, db, uid, password, line.analytic_distribution)
+            # analytic_distribution = self._prepare_analytic_distribution(models, db, uid, password, line.analytic_account_id)
+            remote_analytic_account_id = self._prepare_analytic_distribution(models, db, uid, password, line.analytic_account_id)
 
             move_line_data = {
                 'account_id': account_id,
@@ -149,12 +96,19 @@ class PosSession(models.Model):
                 'currency_id': currency_id,
                 'amount_currency': line.amount_currency,
                 # 'analytic_distribution': analytic_distribution,
+                'analytic_distribution': {str(remote_analytic_account_id): 100} if remote_analytic_account_id else {},
+
             }
 
             move_lines.append((0, 0, move_line_data))
+            branch_company_id = self._map_branch_to_remote_company(models, db, uid, password, move.branch_id)
+            patient_char = move.patient_id.name if move.patient_id else None
+
+
 
         move_data = {
-            'company_id': company_id,
+            'patient': patient_char,
+            'company_id': branch_company_id,
             'ref': move.ref,
             'date': move.date,
             'move_type': move.move_type,
@@ -165,6 +119,34 @@ class PosSession(models.Model):
 
         return move_data
     
+    def _prepare_analytic_distribution(self, models, db, uid, password, local_analytic_account_id):
+        remote_analytic_account_id = None
+        
+        if local_analytic_account_id:
+            local_analytic_account = self.env['account.analytic.account'].browse(int(local_analytic_account_id.id))            
+            remote_analytic_account_id = self._get_remote_id(
+                models, db, uid, password,
+                'account.analytic.account', 'name',
+                local_analytic_account.name
+            )
+        
+        return remote_analytic_account_id
+    
+    def _map_branch_to_remote_company(self, models, db, uid, password, branch_id):
+        remote_company_id = None
+        if branch_id:
+            # Get the local company linked to the branch
+            local_company = branch_id
+
+            # Map to the remote company by name or another unique field
+            remote_company_id = self._get_remote_id(
+                models, db, uid, password,
+                'res.company', 'name', local_company.name
+            )
+        return remote_company_id
+
+
+
     # def _prepare_analytic_distribution(self, models, db, uid, password, local_analytic_distribution):
     #     remote_analytic_distribution = {}
         
@@ -193,3 +175,6 @@ class PosSession(models.Model):
         if field:
             return self._get_remote_id(models, db, uid, password, model, field_name, field.name)
         return False
+
+    
+    

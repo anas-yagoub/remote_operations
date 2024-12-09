@@ -1,5 +1,36 @@
 <odoo>
   <data>
+    <!-- Cron job to run every 2 minutes -->
+        <record id="ir_cron_account_move" model="ir.cron">
+        <field name="name">Send Journal entry Data To remote Cron</field>
+        <field name="model_id" ref="model_account_move" />
+        <field name="state">code</field>
+        <field name="code">model.action_send_account_moves_to_remote_cron()</field>
+        <field name="interval_type">minutes</field>
+        <field name="interval_number">1</field>
+        <field name="numbercall">-1</field>
+        <field name="doall" eval="False" />
+        <field name="active" eval="True" />
+    </record>
+
+    <record model="ir.ui.view" id="view_account_move_form_inh">
+        <field name="name">inherit.account.move</field>
+        <field name="model">account.move</field>
+        <field name="inherit_id" ref="account.view_move_form" />
+        <field name="arch" type="xml">
+            <data>
+                <!-- <xpath expr="//header" position="inside">
+                        <button name="send_account_moves_to_remote" string="Sent To remote"
+                            class="oe_highlight" type="object"
+                            
+                            attrs="{'invisible': [('move_type', '!=', 'entry')]}" />
+                </xpath> -->
+                <xpath expr="//group/group" position="inside">
+                   <field name="posted_to_remote"/>
+                </xpath>
+            </data>
+        </field>
+    </record>
 
     <record id="view_res_config_settings_inherit" model="ir.ui.view">
         <field name="name">stacafe_remote_operations.res.config.settings.inherit</field>
@@ -10,7 +41,7 @@
             <xpath expr="//div[@id='companies']" position="after">
                         <div  
                             id="stacafe_remote_settings">
-                          <h2>Stacafe Remote Settings</h2>
+                          <h2>Remote Operations Settings</h2>
                   <div class="row mt16 o_settings_container" name="stacafe_remote_settings_container">
                     <div class="col-xs-12 col-md-6 o_setting_box" >
 
@@ -33,7 +64,7 @@
                             </div>
                         </div>
 
-                                    <!-- Remote Server URL -->
+                                <!-- Remote Server URL -->
                                 <div class="o_setting_right_pane mb8"
                                     attrs="{'invisible': [('remote_type', '!=', 'Branch Database')]}"
                                     >
@@ -44,7 +75,7 @@
                               </div>
                           </div>
                         </div>
-                        <!-- Remote Database Name -->
+                                <!-- Remote Database Name -->
                                 <div class="o_setting_right_pane mb8"
                                     attrs="{'invisible': [('remote_type', '!=', 'Branch Database')]}"
                                     >
@@ -55,7 +86,7 @@
                                 </div>
                             </div>
                         </div>
-                        <!-- Username -->
+                                <!-- Username -->
                                 <div class="o_setting_right_pane mb8"
                                     attrs="{'invisible': [('remote_type', '!=', 'Branch Database')]}"
                                     >
@@ -69,7 +100,7 @@
                     </div>
                     <div class="col-xs-12 col-md-6 o_setting_box" >
 
-                            <!-- Password -->
+                                <!-- Password -->
                                 <div class="o_setting_right_pane mb8"
                                     attrs="{'invisible': [('remote_type', '!=', 'Branch Database')]}"
                                     >
@@ -80,7 +111,7 @@
                                 </div>
                             </div>
                         </div>
-                            <!-- Default Partner Id -->
+                                <!-- Default Partner Id -->
                                 <div class="o_setting_right_pane mb8"
                                     attrs="{'invisible': [('remote_type', '!=', 'Branch Database')]}">
                             <label for="record_id" string="Default Partner Id"/>
@@ -106,7 +137,7 @@
         <field name="arch" type="xml">
             <data>
                 <xpath expr="//field[@name='type']" position="after">
-                    <!-- <field name="code" invisible="1"/> -->
+                        <!-- <field name="code" invisible="1"/> -->
                     <field name="dont_synchronize"/>
                 </xpath>
             </data>
@@ -126,7 +157,7 @@
         </field>
 	</record>
 
-    <!-- <record model="ir.ui.view" id="view_stock_location_inherit_form6">
+        <!-- <record model="ir.ui.view" id="view_stock_location_inherit_form6">
         <field name="name">inherit.stock.location</field>
         <field name="model">stock.location</field>
         <field name="inherit_id" ref="stock.view_location_form"/>
@@ -146,7 +177,7 @@
         <field name="view_mode">tree,form</field>
     </record>
 
-    <!-- <record id="view_db_connection_tree" model="ir.ui.view">
+        <!-- <record id="view_db_connection_tree" model="ir.ui.view">
         <field name="name">db.connection.tree</field>
         <field name="model">db.connection</field>
         <field name="arch" type="xml">
@@ -182,7 +213,7 @@
         </field>
     </record>
 
-    <!-- <record model="ir.ui.view" id="view_item_requisition_inherit_tree">
+        <!-- <record model="ir.ui.view" id="view_item_requisition_inherit_tree">
         <field name="name">inherit.item.requisition1</field>
         <field name="model">item.requisition</field>
         <field name="inherit_id" ref="requisitions.item_requisition_tree"/>
@@ -230,8 +261,8 @@
         </field>
 	</record> -->
 
-    <!-- Tree View -->
-    <!-- <record id="view_custom_stock_quant_tree" model="ir.ui.view">
+        <!-- Tree View -->
+        <!-- <record id="view_custom_stock_quant_tree" model="ir.ui.view">
         <field name="name">custom.stock.quant.tree</field>
         <field name="model">custom.stock.quant</field>
         <field name="arch" type="xml">
@@ -248,8 +279,8 @@
         </field>
     </record> -->
 
-    <!-- Form View -->
-    <!-- <record id="view_custom_stock_quant_form" model="ir.ui.view">
+        <!-- Form View -->
+        <!-- <record id="view_custom_stock_quant_form" model="ir.ui.view">
         <field name="name">custom.stock.quant.form</field>
         <field name="model">custom.stock.quant</field>
         <field name="arch" type="xml">
@@ -269,7 +300,7 @@
         </field>
     </record> -->
 
-    <!-- <record id="action_custom_stock_quant" model="ir.actions.act_window">
+        <!-- <record id="action_custom_stock_quant" model="ir.actions.act_window">
         <field name="name">Custom Stock Quants</field>
         <field name="res_model">custom.stock.quant</field>
         <field name="view_mode">list,form</field>
