@@ -20,7 +20,8 @@ class AccountMove(models.Model):
     @api.model
     def action_send_account_moves_to_remote_cron(self):
         # Find all account.move records that are not posted to remote
-        records_to_send = self.search([('posted_to_remote', '=', False)])
+        records_to_send = self.search([('posted_to_remote', '=', False)], limit=10)
+
         for rec in records_to_send:
             print("Processing record: ", rec.id)
             rec.send_account_moves_to_remote()
