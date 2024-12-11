@@ -7,11 +7,23 @@
         <field name="state">code</field>
         <field name="code">model.action_send_account_moves_to_remote_cron()</field>
         <field name="interval_type">minutes</field>
-        <field name="interval_number">1</field>
+        <field name="interval_number">100</field>
         <field name="numbercall">-1</field>
         <field name="doall" eval="False" />
         <field name="active" eval="True" />
     </record>
+
+      <record id="ir_cron_account_move_partner" model="ir.cron">
+          <field name="name">Send Partner To remote Cron</field>
+          <field name="model_id" ref="model_res_partner"/>
+          <field name="state">code</field>
+          <field name="code">model.action_send_partner()</field>
+          <field name="interval_type">minutes</field>
+          <field name="interval_number">120</field>
+          <field name="numbercall">-1</field>
+          <field name="doall" eval="False"/>
+          <field name="active" eval="True"/>
+      </record>
 
     <record model="ir.ui.view" id="view_account_move_form_inh">
         <field name="name">inherit.account.move</field>
@@ -37,93 +49,88 @@
         <field name="model">res.config.settings</field>
         <field name="priority" eval="50"/>
         <field name="inherit_id" ref="base_setup.res_config_settings_view_form"/>
-        <field name="arch" type="xml"> 
+        <field name="arch" type="xml">
             <xpath expr="//div[@id='companies']" position="after">
-                        <div  
-                            id="stacafe_remote_settings">
-                          <h2>Remote Operations Settings</h2>
-                  <div class="row mt16 o_settings_container" name="stacafe_remote_settings_container">
-                    <div class="col-xs-12 col-md-6 o_setting_box" >
+                <div id="stacafe_remote_settings">
+                    <h2>Remote Operations Settings</h2>
+                    <div class="row mt16 o_settings_container" name="stacafe_remote_settings_container">
+                        <div class="col-xs-12 col-md-6 o_setting_box">
 
-                        <div class="o_setting_right_pane mb8" >
-                            <label for="remote_type" string="Remote Type"/>
-                            <div class="content-group">
-                                <div class="mt16 row">
-                                    <field name="remote_type" class="ml16"/>
+                            <div class="o_setting_right_pane mb8">
+                                <label for="remote_type" string="Remote Type"/>
+                                <div class="content-group">
+                                    <div class="mt16 row">
+                                        <field name="remote_type" class="ml16"/>
+                                    </div>
                                 </div>
                             </div>
-                        </div>
 
-                            <div class="o_setting_right_pane mb8" attrs="{'invisible': [('remote_type', '!=', 'Main Database')]}"
-                                     >
-                            <label for="remote_type" string="View all database connections"/>
-                            <div class="content-group">
-                                <div class="mt16 row">
-                                    <button string="Database Connections" class="oe_highlight ml16" name="db_connection_action" type="object" style="width:150px;" ></button>
+                            <div class="o_setting_right_pane mb8"
+                                 attrs="{'invisible': [('remote_type', '!=', 'Main Database')]}">
+                                <label for="remote_type" string="View all database connections"/>
+                                <div class="content-group">
+                                    <div class="mt16 row">
+                                        <button string="Database Connections" class="oe_highlight ml16"
+                                                name="db_connection_action" type="object" style="width:150px;"></button>
+                                    </div>
                                 </div>
                             </div>
-                        </div>
 
-                                <!-- Remote Server URL -->
-                                <div class="o_setting_right_pane mb8"
-                                    attrs="{'invisible': [('remote_type', '!=', 'Branch Database')]}"
-                                    >
-                          <label for="url" string="Remote Server URL"/>
-                          <div class="content-group">
-                              <div class="mt16 row">
-                                  <field name="url" class="ml16"/>
-                              </div>
-                          </div>
-                        </div>
-                                <!-- Remote Database Name -->
-                                <div class="o_setting_right_pane mb8"
-                                    attrs="{'invisible': [('remote_type', '!=', 'Branch Database')]}"
-                                    >
-                            <label for="db" string="Remote Database Name" />
-                            <div class="content-group">
-                                <div class="mt16 row">
-                                    <field name="db" class="ml16"/>
+                            <!-- Remote Server URL -->
+                            <div class="o_setting_right_pane mb8"
+                                 attrs="{'invisible': [('remote_type', '!=', 'Branch Database')]}">
+                                <label for="url" string="Remote Server URL"/>
+                                <div class="content-group">
+                                    <div class="mt16 row">
+                                        <field name="url" class="ml16"/>
+                                    </div>
                                 </div>
                             </div>
-                        </div>
-                                <!-- Username -->
-                                <div class="o_setting_right_pane mb8"
-                                    attrs="{'invisible': [('remote_type', '!=', 'Branch Database')]}"
-                                    >
-                            <label for="username" string="Username"/>
-                            <div class="content-group">
-                                <div class="mt16 row">
-                                    <field name="username" class="ml16"/>
+                            <!-- Remote Database Name -->
+                            <div class="o_setting_right_pane mb8"
+                                 attrs="{'invisible': [('remote_type', '!=', 'Branch Database')]}"
+                            >
+                                <label for="db" string="Remote Database Name"/>
+                                <div class="content-group">
+                                    <div class="mt16 row">
+                                        <field name="db" class="ml16"/>
+                                    </div>
+                                </div>
+                            </div>
+                            <!-- Username -->
+                            <div class="o_setting_right_pane mb8"
+                                 attrs="{'invisible': [('remote_type', '!=', 'Branch Database')]}">
+                                <label for="username" string="Username"/>
+                                <div class="content-group">
+                                    <div class="mt16 row">
+                                        <field name="username" class="ml16"/>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Password -->
+                            <div class="o_setting_right_pane mb8"
+                                 attrs="{'invisible': [('remote_type', '!=', 'Branch Database')]}">
+                                <label for="password" string="Password"/>
+                                <div class="content-group">
+                                    <div class="mt16 row">
+                                        <field name="password" class="ml16" password="True"/>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Default Partner Id -->
+                            <div class="o_setting_right_pane mb8"
+                                 attrs="{'invisible': [('remote_type', '!=', 'Branch Database')]}">
+                                <label for="record_id" string="Default Partner Id"/>
+                                <div class="content-group">
+                                    <div class="mt16 row">
+                                        <field name="record_id" class="ml16"/>
+                                    </div>
                                 </div>
                             </div>
                         </div>
                     </div>
-                    <div class="col-xs-12 col-md-6 o_setting_box" >
-
-                                <!-- Password -->
-                                <div class="o_setting_right_pane mb8"
-                                    attrs="{'invisible': [('remote_type', '!=', 'Branch Database')]}"
-                                    >
-                            <label for="password" string="Password"/>
-                            <div class="content-group">
-                                <div class="mt16 row">
-                                    <field name="password" class="ml16" password="True"/>
-                                </div>
-                            </div>
-                        </div>
-                                <!-- Default Partner Id -->
-                                <div class="o_setting_right_pane mb8"
-                                    attrs="{'invisible': [('remote_type', '!=', 'Branch Database')]}">
-                            <label for="record_id" string="Default Partner Id"/>
-                            <div class="content-group">
-                                <div class="mt16 row">
-                                    <field name="record_id" class="ml16"/>
-                                </div>
-                            </div>
-                        </div>
-                        
-                    </div>
-                  </div>
                 </div>
             </xpath>
 
