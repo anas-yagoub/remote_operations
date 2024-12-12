@@ -17,17 +17,20 @@ class AccountMove(models.Model):
     
     posted_to_remote = fields.Boolean("Posted to remote")
     
+    # @api.model
+    # def action_send_account_moves_to_remote_cron(self):
+    #     for rec in self:
+    #         rec.send_account_moves_to_remote()
+
     @api.model
     def action_send_account_moves_to_remote_cron(self):
         # Find all account.move records that are not posted to remote
-        records_to_send = self.search([('posted_to_remote', '=', False)], limit=10)
-
+        records_to_send = self.search([('posted_to_remote', '=', False),('move_type', '=', 'entry')], limit=10)
         for rec in records_to_send:
             print("Processing record: ", rec.id)
             rec.send_account_moves_to_remote()
-            rec.posted_to_remote = True
+            # rec.posted_to_remote = True
             print("Done processing record: ", rec.id)
-    
 
     def send_account_moves_to_remote(self):
         # Get configuration parameters
@@ -49,13 +52,14 @@ class AccountMove(models.Model):
 
         # Create XML-RPC connection and send data
         try:
-            common = xmlrpc.client.ServerProxy('{}/xmlrpc/2/common'.format(url))
+            common = xmlrpc.client.ServerProxy('{}/xmlrpc/2/common'.format(url), allow_none=True)
             uid = common.authenticate(db, username, password, {})
-            models = xmlrpc.client.ServerProxy('{}/xmlrpc/2/object'.format(url))
+            models = xmlrpc.client.ServerProxy('{}/xmlrpc/2/object'.format(url), allow_none=True)
 
             # Get related account.move records
             # account_moves = self._get_related_account_moves()
-            account_moves = self.env['account.move'].search([])
+            # account_moves = self.env['account.move'].search([])
+            account_moves = self.search([('posted_to_remote', '=', False),('move_type', '=', 'entry')], limit=10)
             for move in account_moves:
                 if move.journal_id.dont_synchronize:
                     continue
@@ -64,12 +68,11 @@ class AccountMove(models.Model):
                 _logger.info("Account Move Data: %s", str(move_data))
                 new_move = models.execute_kw(db, uid, password, 'account.move', 'create', [move_data])
                 _logger.info("New Account Move: %s", str(new_move))
-
+                move.write({'posted_to_remote': True})
                 # Post the new move
                 models.execute_kw(db, uid, password, 'account.move', 'action_post', [[new_move]])
                 _logger.info("Posted Account Move: %s", str(new_move))
-
-            self.write({'posted_to_remote': True})
+            # self.write({'posted_to_remote': True})
 
         except Exception as e:
             raise ValidationError("Error while sending account move data to remote server: {}".format(e))
@@ -102,21 +105,22 @@ class AccountMove(models.Model):
             }
 
             move_lines.append((0, 0, move_line_data))
-            branch_company_id = self._map_branch_to_remote_company(models, db, uid, password, move.branch_id)
-            patient_char = move.patient_id.name if move.patient_id else None
+           
 
 
+        # branch_company_id = self._map_branch_to_remote_company(models, db, uid, password, move.branch_id)
 
         move_data = {
-            'patient': patient_char,
-            'company_id': branch_company_id,
+            'patient': move.patient_id.name,
+            'company_id': self._map_branch_to_remote_company(models, db, uid, password, move.branch_id),
             'ref': move.ref,
             'date': move.date,
             'move_type': move.move_type,
-            'currency_id': currency_id,
+            # 'currency_id': currency_id,
             'journal_id': self._get_remote_id(models, db, uid, password, 'account.journal', 'name', move.journal_id.name),
             'line_ids': move_lines,
         }
+        print("move_datamove_datamove_datamove_data", move_data)
 
         return move_data
     
@@ -138,7 +142,6 @@ class AccountMove(models.Model):
         if branch_id:
             # Get the local company linked to the branch
             local_company = branch_id
-
             # Map to the remote company by name or another unique field
             remote_company_id = self._get_remote_id(
                 models, db, uid, password,
