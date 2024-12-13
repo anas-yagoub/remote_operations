@@ -63,6 +63,16 @@ class AccountMove(models.Model):
             for move in account_moves:
                 if move.journal_id.dont_synchronize:
                     continue
+                
+                # Ensure partner exists in remote database
+                for line in move.line_ids:
+                    if line.partner_id:
+                        remote_partner_id = self._get_remote_id_if_set(models, db, uid, password, 'res.partner', 'name', line.partner_id)
+                        if not remote_partner_id:
+                            # Create partner in remote database
+                            remote_partner_id = self._create_remote_partner(models, db, uid, password, line.partner_id)
+                            
+                            
                 company_id = self._get_remote_id(models, db, uid, password, 'res.company', 'name', move.journal_id.company_id.name)
                 move_data = self._prepare_move_data(models, db, uid, password, move, company_id)
                 _logger.info("Account Move Data: %s", str(move_data))
@@ -120,7 +130,6 @@ class AccountMove(models.Model):
             'journal_id': self._get_remote_id(models, db, uid, password, 'account.journal', 'name', move.journal_id.name),
             'line_ids': move_lines,
         }
-        print("move_datamove_datamove_datamove_data", move_data)
 
         return move_data
     
@@ -179,6 +188,23 @@ class AccountMove(models.Model):
         if field:
             return self._get_remote_id(models, db, uid, password, model, field_name, field.name)
         return False
+    
+    def _create_remote_partner(self, models, db, uid, password, partner):
+        """Create a partner in the remote database and return the new remote ID."""
+        partner_data = {
+            'name': partner.name,
+            'email': partner.email,
+            'phone': partner.phone,
+            'mobile': partner.mobile,
+            'street': partner.street,
+            'city': partner.city,
+            # 'state_id': self._get_remote_id_if_set(models, db, uid, password, 'res.country.state', 'name', partner.state_id),
+            # 'country_id': self._get_remote_id_if_set(models, db, uid, password, 'res.country', 'name', partner.country_id),
+            'zip': partner.zip,
+            'vat': partner.vat,
+
+        }
+        return models.execute_kw(db, uid, password, 'res.partner', 'create', [partner_data])
 
     
     
