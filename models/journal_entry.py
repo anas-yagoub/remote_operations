@@ -55,23 +55,29 @@ class AccountMove(models.Model):
             common = xmlrpc.client.ServerProxy('{}/xmlrpc/2/common'.format(url), allow_none=True)
             uid = common.authenticate(db, username, password, {})
             models = xmlrpc.client.ServerProxy('{}/xmlrpc/2/object'.format(url), allow_none=True)
-
+            
+            start_date = fields.Date.to_date('2024-07-01')
+            # account_moves = self.search([('posted_to_remote', '=', False),('move_type', '=', 'entry')], limit=10)
+            account_moves = self.sudo().search([('posted_to_remote', '=', False), ('date', '>=', start_date)], limit=10,
+                                               order='date asc')
             # Get related account.move records
             # account_moves = self._get_related_account_moves()
             # account_moves = self.env['account.move'].search([])
-            account_moves = self.search([('posted_to_remote', '=', False),('move_type', '=', 'entry')], limit=10)
+            # account_moves = self.search([('posted_to_remote', '=', False),('move_type', '=', 'entry')], limit=10)
             for move in account_moves:
                 if move.journal_id.dont_synchronize:
                     continue
                 
                 # Ensure partner exists in remote database
                 for line in move.line_ids:
-                    if line.partner_id:
-                        remote_partner_id = self._get_remote_id_if_set(models, db, uid, password, 'res.partner', 'name', line.partner_id)
-                        if not remote_partner_id:
+                    # print("*************************** Partner Name", line.partner_id.name)
+                    # if line.partner_id:
+                    remote_partner_id = self._get_remote_id_if_set(models, db, uid, password, 'res.partner', 'name', line.partner_id)
+                    print("*************************** Partner Name222222222",remote_partner_id )
+                    if not remote_partner_id:
                             # Create partner in remote database
-                            remote_partner_id = self._create_remote_partner(models, db, uid, password, line.partner_id)
-                            
+                        remote_partner_id = self._create_remote_partner(models, db, uid, password, line.partner_id)
+                                
                             
                 company_id = self._get_remote_id(models, db, uid, password, 'res.company', 'name', move.journal_id.company_id.name)
                 move_data = self._prepare_move_data(models, db, uid, password, move, company_id)
@@ -177,12 +183,28 @@ class AccountMove(models.Model):
         if not remote_company:
             raise ValidationError(_("No company found in the remote database."))
         return remote_company[0]['id']
-
+    
     def _get_remote_id(self, models, db, uid, password, model, field_name, field_value):
-        remote_record = models.execute_kw(db, uid, password, model, 'search_read', [[(field_name, '=', field_value)]], {'fields': ['id'], 'limit': 1})
+        remote_record = models.execute_kw(
+            db, uid, password, model, 'search_read', 
+            [[(field_name, '=', field_value)]], 
+            {'fields': ['id'], 'limit': 1}
+        )
         if not remote_record:
-            raise ValidationError(_("The record for model '%s' with %s '%s' cannot be found in the remote database.") % (model, field_name, field_value))
+            # Instead of raising an error, return None or handle creation here
+            _logger.warning(
+                "The record for model '%s' with %s '%s' was not found in the remote database.",
+                model, field_name, field_value
+            )
+            return None  # Or choose to create the record dynamically if needed
         return remote_record[0]['id']
+
+
+    # def _get_remote_id(self, models, db, uid, password, model, field_name, field_value):
+    #     remote_record = models.execute_kw(db, uid, password, model, 'search_read', [[(field_name, '=', field_value)]], {'fields': ['id'], 'limit': 1})
+    #     if not remote_record:
+    #         raise ValidationError(_("The record for model '%s' with %s '%s' cannot be found in the remote database.") % (model, field_name, field_value))
+    #     return remote_record[0]['id']
 
     def _get_remote_id_if_set(self, models, db, uid, password, model, field_name, field):
         if field:
@@ -191,6 +213,14 @@ class AccountMove(models.Model):
     
     def _create_remote_partner(self, models, db, uid, password, partner):
         """Create a partner in the remote database and return the new remote ID."""
+        for rec in self:
+            for line in rec.line_ids:
+                account_receivable_id_to_check = line.partner_id.property_account_receivable_id.code
+                account_payable_to_check = line.partner_id.property_account_payable_id.code
+
+        property_account_receivable_id = self._get_remote_id(models, db, uid, password, 'account.account', 'code', account_receivable_id_to_check)
+        property_account_payable_id = self._get_remote_id(models, db, uid, password, 'account.account', 'code', account_payable_to_check)
+
         partner_data = {
             'name': partner.name,
             'email': partner.email,
@@ -199,9 +229,13 @@ class AccountMove(models.Model):
             'street': partner.street,
             'city': partner.city,
             # 'state_id': self._get_remote_id_if_set(models, db, uid, password, 'res.country.state', 'name', partner.state_id),
-            # 'country_id': self._get_remote_id_if_set(models, db, uid, password, 'res.country', 'name', partner.country_id),
+            'country_id': self._get_remote_id_if_set(models, db, uid, password, 'res.country', 'name', partner.country_id),
             'zip': partner.zip,
             'vat': partner.vat,
+            'customer_rank': partner.customer_rank,
+            'supplier_rank': partner.supplier_rank,
+            'property_account_receivable_id': property_account_receivable_id,
+            'property_account_payable_id': property_account_payable_id,
 
         }
         return models.execute_kw(db, uid, password, 'res.partner', 'create', [partner_data])

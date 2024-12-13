@@ -34,9 +34,9 @@ class ResPartnerSync(models.Model):
 
         # Create XML-RPC connection and send data
         try:
-            common = xmlrpc.client.ServerProxy(f'{url}/xmlrpc/2/common')
+            common = xmlrpc.client.ServerProxy(f'{url}/xmlrpc/2/common', allow_none=True)
             uid = common.authenticate(db, username, password, {})
-            models = xmlrpc.client.ServerProxy(f'{url}/xmlrpc/2/object')
+            models = xmlrpc.client.ServerProxy(f'{url}/xmlrpc/2/object', allow_none=True)
 
             # Prepare contact data
             partner_data = self._prepare_partner_data(models, db, uid, password, self)
@@ -60,6 +60,12 @@ class ResPartnerSync(models.Model):
 
     def _prepare_partner_data(self, models, db, uid, password, partner):
         # Prepare data to match the remote contact fields
+        account_receivable_id_to_check = self.property_account_receivable_id.code
+        account_payable_to_check = self.property_account_payable_id.code
+
+        property_account_receivable_id = self._get_remote_id(models, db, uid, password, 'account.account', 'code', account_receivable_id_to_check)
+        property_account_payable_id = self._get_remote_id(models, db, uid, password, 'account.account', 'code', account_payable_to_check)
+
         return {
             'name': partner.name,
             'email': partner.email,
@@ -69,11 +75,13 @@ class ResPartnerSync(models.Model):
             'street2': partner.street2,
             'city': partner.city,
             'zip': partner.zip,
-            # 'country_id': self._get_remote_id_if_set(models, db, uid, password, 'res.country', 'name', partner.country_id),
+            'country_id': self._get_remote_id_if_set(models, db, uid, password, 'res.country', 'name', partner.country_id) or False,
             # 'state_id': self._get_remote_id_if_set(models, db, uid, password, 'res.country.state', 'name', partner.state_id),
             'vat': partner.vat,
             'customer_rank': partner.customer_rank,
             'supplier_rank': partner.supplier_rank,
+            'property_account_receivable_id': property_account_receivable_id,
+            'property_account_payable_id': property_account_payable_id,
         }
            
 
