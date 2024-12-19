@@ -70,6 +70,8 @@ class ResPartnerSync(models.Model):
             'name': partner.name,
             'email': partner.email,
             'phone': partner.phone,
+            'is_company': partner.is_company,
+            'company_type': partner.company_type,
             'mobile': partner.mobile,
             'street': partner.street,
             'street2': partner.street2,
