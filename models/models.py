@@ -40,7 +40,7 @@ class ResConfigSettings(models.TransientModel):
         return {
             'type': 'ir.actions.act_window',
             'name': 'Database Connections',
-            'view_mode': 'tree,form',
+            'view_mode': 'list,form',
             'res_model': 'db.connection',
             'target': 'self',
         }

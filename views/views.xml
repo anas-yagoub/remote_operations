@@ -148,8 +148,8 @@
         <field name="view_mode">list,form</field>
     </record>
 
-    <record id="view_db_connection_tree" model="ir.ui.view">
-        <field name="name">db.connection.tree</field>
+    <record id="view_db_connection_list" model="ir.ui.view">
+        <field name="name">db.connection.list</field>
         <field name="model">db.connection</field>
         <field name="arch" type="xml">
             <list editable="bottom">
@@ -184,10 +184,10 @@
         </field>
     </record>
 
-    <!-- <record model="ir.ui.view" id="view_item_requisition_inherit_tree">
+    <!-- <record model="ir.ui.view" id="view_item_requisition_inherit_list">
         <field name="name">inherit.item.requisition1</field>
         <field name="model">item.requisition</field>
-        <field name="inherit_id" ref="requisitions.item_requisition_tree"/>
+        <field name="inherit_id" ref="requisitions.item_requisition_list"/>
         <field name="arch" type="xml">
             <xpath expr="//field[@name='name']" position="after">
                 <field name="destination1"/>
@@ -232,9 +232,9 @@
         </field>
 	</record> -->
 
-        <!-- Tree View -->
-    <!-- <record id="view_custom_stock_quant_tree" model="ir.ui.view">
-        <field name="name">custom.stock.quant.tree</field>
+        <!-- list View -->
+    <!-- <record id="view_custom_stock_quant_list" model="ir.ui.view">
+        <field name="name">custom.stock.quant.list</field>
         <field name="model">custom.stock.quant</field>
         <field name="arch" type="xml">
             <list string="Custom Stock Quants">
@@ -275,7 +275,7 @@
         <field name="name">Custom Stock Quants</field>
         <field name="res_model">custom.stock.quant</field>
         <field name="view_mode">list,form</field>
-        <field name="view_id" ref="view_custom_stock_quant_tree"/>
+        <field name="view_id" ref="view_custom_stock_quant_list"/>
         <field name="help" type="html">
             <p>
                 Use this model to manage stock quants.
