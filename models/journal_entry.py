@@ -56,9 +56,9 @@ class AccountMove(models.Model):
             uid = common.authenticate(db, username, password, {})
             models = xmlrpc.client.ServerProxy('{}/xmlrpc/2/object'.format(url), allow_none=True)
             
-            start_date = fields.Date.to_date('2024-07-01')
+            start_date = fields.Date.to_date('01-07-2024')
             # account_moves = self.search([('posted_to_remote', '=', False),('move_type', '=', 'entry')], limit=10)
-            account_moves = self.sudo().search([('posted_to_remote', '=', False), ('date', '>=', start_date)], limit=10,
+            account_moves = self.sudo().search([('posted_to_remote', '=', False), ('date', '>=', start_date)], limit=1,
                                                order='date asc')
             # Get related account.move records
             # account_moves = self._get_related_account_moves()
@@ -73,7 +73,6 @@ class AccountMove(models.Model):
                     # print("*************************** Partner Name", line.partner_id.name)
                     # if line.partner_id:
                     remote_partner_id = self._get_remote_id_if_set(models, db, uid, password, 'res.partner', 'name', line.partner_id)
-                    print("*************************** Partner Name222222222",remote_partner_id )
                     if not remote_partner_id:
                             # Create partner in remote database
                         remote_partner_id = self._create_remote_partner(models, db, uid, password, line.partner_id)
