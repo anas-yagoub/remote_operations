@@ -52,9 +52,9 @@ class AccountMove(models.Model):
 
         # Create XML-RPC connection and send data
         try:
-            common = xmlrpc.client.ServerProxy('{}/xmlrpc/2/common'.format(url), allow_none=True)
+            common = xmlrpc.client.ServerProxy('{}/xmlrpc/2/common'.format(url))
             uid = common.authenticate(db, username, password, {})
-            models = xmlrpc.client.ServerProxy('{}/xmlrpc/2/object'.format(url), allow_none=True)
+            models = xmlrpc.client.ServerProxy('{}/xmlrpc/2/object'.format(url))
             
             # start_date = fields.Date.to_date('2024-07-01')
             # # account_moves = self.search([('posted_to_remote', '=', False),('move_type', '=', 'entry')], limit=10)
@@ -64,20 +64,24 @@ class AccountMove(models.Model):
             # account_moves = self._get_related_account_moves()
             # account_moves = self.env['account.move'].search([])
             account_moves = self.search([('posted_to_remote', '=', False),('move_type', '=', 'entry')], limit=1)
+            print('*********************************', account_moves)
             for move in account_moves:
                 if move.journal_id.dont_synchronize:
                     continue
                 
                 # Ensure partner exists in remote database
                 for line in move.line_ids:
-                    # print("*************************** Partner Name", line.partner_id.name)
+                    print("*************************** Partner Name", line.partner_id.name)
                     # if line.partner_id:
-                    remote_partner_id = self._get_remote_id(models, db, uid, password, 'res.partner', 'name', line.partner_id.name)
+                    remote_partner_id = self._get_remote_id_if_set(models, db, uid, password, 'res.partner', 'name', line.partner_id)
+                    print("*************************** remote_partner_id Name", remote_partner_id)
+
                     if not remote_partner_id:
                             # Create partner in remote database
                         remote_partner_id = self._create_remote_partner(models, db, uid, password, line.partner_id)
-                                
-    
+                        print("*************************** remote_partner_id Name", remote_partner_id)
+
+
                 company_id = self._get_remote_id(models, db, uid, password, 'res.company', 'name', move.journal_id.company_id.name)
                 move_data = self._prepare_move_data(models, db, uid, password, move, company_id)
                 _logger.info("Account Move Data: %s", str(move_data))
@@ -111,7 +115,7 @@ class AccountMove(models.Model):
                 'name': line.name,
                 'debit': line.debit,
                 'credit': line.credit,
-                'partner_id': self._get_remote_id_if_set(models, db, uid, password, 'res.partner', 'name', line.partner_id),
+                'partner_id': self._get_remote_id_if_set(models, db, uid, password, 'res.partner', 'name', line.partner_id) or None,
                 'currency_id': currency_id,
                 'amount_currency': line.amount_currency,
                 # 'analytic_distribution': analytic_distribution,
@@ -217,8 +221,8 @@ class AccountMove(models.Model):
                 account_receivable_id_to_check = line.partner_id.property_account_receivable_id.code
                 account_payable_to_check = line.partner_id.property_account_payable_id.code
 
-        property_account_receivable_id = self._get_remote_id(models, db, uid, password, 'account.account', 'code', account_receivable_id_to_check)
-        property_account_payable_id = self._get_remote_id(models, db, uid, password, 'account.account', 'code', account_payable_to_check)
+            property_account_receivable_id = self._get_remote_id(models, db, uid, password, 'account.account', 'code', account_receivable_id_to_check)
+            property_account_payable_id = self._get_remote_id(models, db, uid, password, 'account.account', 'code', account_payable_to_check)
 
         partner_data = {
             'name': partner.name,
@@ -237,6 +241,7 @@ class AccountMove(models.Model):
             'property_account_payable_id': property_account_payable_id,
 
         }
+        print("*************************************** partner data", partner_data)
         return models.execute_kw(db, uid, password, 'res.partner', 'create', [partner_data])
 
     
