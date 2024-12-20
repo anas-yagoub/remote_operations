@@ -56,14 +56,14 @@ class AccountMove(models.Model):
             uid = common.authenticate(db, username, password, {})
             models = xmlrpc.client.ServerProxy('{}/xmlrpc/2/object'.format(url), allow_none=True)
             
-            start_date = fields.Date.to_date('2024-07-01')
-            # account_moves = self.search([('posted_to_remote', '=', False),('move_type', '=', 'entry')], limit=10)
-            account_moves = self.sudo().search([('posted_to_remote', '=', False), ('date', '>=', start_date)], limit=10,
-                                               order='date asc')
+            # start_date = fields.Date.to_date('2024-07-01')
+            # # account_moves = self.search([('posted_to_remote', '=', False),('move_type', '=', 'entry')], limit=10)
+            # account_moves = self.sudo().search([('posted_to_remote', '=', False), ('date', '>=', start_date)], limit=10,
+                                            #    order='date asc')
             # Get related account.move records
             # account_moves = self._get_related_account_moves()
             # account_moves = self.env['account.move'].search([])
-            # account_moves = self.search([('posted_to_remote', '=', False),('move_type', '=', 'entry')], limit=10)
+            account_moves = self.search([('posted_to_remote', '=', False),('move_type', '=', 'entry')], limit=1)
             for move in account_moves:
                 if move.journal_id.dont_synchronize:
                     continue
