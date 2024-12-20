@@ -72,7 +72,7 @@ class AccountMove(models.Model):
                 for line in move.line_ids:
                     # print("*************************** Partner Name", line.partner_id.name)
                     # if line.partner_id:
-                    remote_partner_id = self._get_remote_id_if_set(models, db, uid, password, 'res.partner', 'name', line.partner_id)
+                    remote_partner_id = self._get_remote_id(models, db, uid, password, 'res.partner', 'name', line.partner_id.name)
                     if not remote_partner_id:
                             # Create partner in remote database
                         remote_partner_id = self._create_remote_partner(models, db, uid, password, line.partner_id)
