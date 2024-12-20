@@ -85,8 +85,8 @@ class AccountMove(models.Model):
                 _logger.info("New Account Move: %s", str(new_move))
                 move.write({'posted_to_remote': True})
                 # Post the new move
-                models.execute_kw(db, uid, password, 'account.move', 'action_post', [[new_move]])
-                _logger.info("Posted Account Move: %s", str(new_move))
+                # models.execute_kw(db, uid, password, 'account.move', 'action_post', [[new_move]])
+                # _logger.info("Posted Account Move: %s", str(new_move))
             # self.write({'posted_to_remote': True})
 
         except Exception as e:
