@@ -75,9 +75,9 @@ class AccountMove(models.Model):
                     remote_partner_id = self._get_remote_id_if_set(models, db, uid, password, 'res.partner', 'name', line.partner_id)
                     if not remote_partner_id:
                             # Create partner in remote database
-                        remote_partner_id = self._create_remote_partner(models, db, uid, password, line.partner_id)
+                        remote_partner_id = self._create_remote_partner(models, db, uid, password, line.partner_id.name)
                                 
-                            
+    
                 company_id = self._get_remote_id(models, db, uid, password, 'res.company', 'name', move.journal_id.company_id.name)
                 move_data = self._prepare_move_data(models, db, uid, password, move, company_id)
                 _logger.info("Account Move Data: %s", str(move_data))
