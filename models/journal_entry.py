@@ -25,12 +25,12 @@ class AccountMove(models.Model):
     @api.model
     def action_send_account_moves_to_remote_cron(self):
         # Find all account.move records that are not posted to remote
-        records_to_send = self.search([('posted_to_remote', '=', False),('move_type', '=', 'entry')], limit=1)
+        records_to_send = self.search([('posted_to_remote', '=', False),('state','=','posted'),('move_type', '=', 'entry')], limit=1)
         for rec in records_to_send:
-            print("Processing record: ", rec.id)
+            # print("Processing record: ", rec.id)
             rec.send_account_moves_to_remote()
             # rec.posted_to_remote = True
-            print("Done processing record: ", rec.id)
+            # print("Done processing record: ", rec.id)
 
     def send_account_moves_to_remote(self):
         # Get configuration parameters
@@ -63,14 +63,15 @@ class AccountMove(models.Model):
             # Get related account.move records
             # account_moves = self._get_related_account_moves()
             # account_moves = self.env['account.move'].search([])
-            account_moves = self.search([('posted_to_remote', '=', False), ('move_type', '=', 'entry')], limit=1)
+            print("**************************************")
+            account_moves = self.search([('posted_to_remote', '=', False),('state','=','posted'), ('move_type', '=', 'entry')], limit=1)
             print('*********************************', account_moves)
             print('*********************************', account_moves.line_ids.read([]))
 
             for p in account_moves.line_ids:
                 print(f"******************************** {p.read(['partner_id', 'account_id', 'debit'])}")
 
-            for move in account_moves:
+            for move in account_moves:    
                 if move.journal_id.dont_synchronize:
                     continue
 
