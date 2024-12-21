@@ -52,46 +52,52 @@ class AccountMove(models.Model):
 
         # Create XML-RPC connection and send data
         try:
-            common = xmlrpc.client.ServerProxy('{}/xmlrpc/2/common'.format(url))
+            common = xmlrpc.client.ServerProxy('{}/xmlrpc/2/common'.format(url), allow_none=True)
             uid = common.authenticate(db, username, password, {})
-            models = xmlrpc.client.ServerProxy('{}/xmlrpc/2/object'.format(url))
-            
+            models = xmlrpc.client.ServerProxy('{}/xmlrpc/2/object'.format(url), allow_none=True)
+
             # start_date = fields.Date.to_date('2024-07-01')
             # # account_moves = self.search([('posted_to_remote', '=', False),('move_type', '=', 'entry')], limit=10)
             # account_moves = self.sudo().search([('posted_to_remote', '=', False), ('date', '>=', start_date)], limit=10,
-                                            #    order='date asc')
+            #    order='date asc')
             # Get related account.move records
             # account_moves = self._get_related_account_moves()
             # account_moves = self.env['account.move'].search([])
-            account_moves = self.search([('posted_to_remote', '=', False),('move_type', '=', 'entry')], limit=1)
+            account_moves = self.search([('posted_to_remote', '=', False), ('move_type', '=', 'entry')], limit=1)
             print('*********************************', account_moves)
+            print('*********************************', account_moves.line_ids.read([]))
+
+            for p in account_moves.line_ids:
+                print(f"******************************** {p.read(['partner_id', 'account_id', 'debit'])}")
+
             for move in account_moves:
                 if move.journal_id.dont_synchronize:
                     continue
-                
+
                 # Ensure partner exists in remote database
                 for line in move.line_ids:
                     print("*************************** Partner Name", line.partner_id.name)
-                    # if line.partner_id:
-                    remote_partner_id = self._get_remote_id_if_set(models, db, uid, password, 'res.partner', 'name', line.partner_id)
-                    print("*************************** remote_partner_id Name", remote_partner_id)
-
-                    if not remote_partner_id:
-                            # Create partner in remote database
-                        remote_partner_id = self._create_remote_partner(models, db, uid, password, line.partner_id)
+                    if line.partner_id:
+                        remote_partner_id = self._get_remote_id_if_set(models, db, uid, password, 'res.partner', 'name',
+                                                                       line.partner_id)
                         print("*************************** remote_partner_id Name", remote_partner_id)
 
+                        if not remote_partner_id and line.partner_id:
+                            # Create partner in remote database
+                            remote_partner_id = self._create_remote_partner(models, db, uid, password, line.partner_id)
+                            print("*************************** remote_partner_id Name (NEW)", remote_partner_id)
 
-                company_id = self._get_remote_id(models, db, uid, password, 'res.company', 'name', move.journal_id.company_id.name)
-                move_data = self._prepare_move_data(models, db, uid, password, move, company_id)
-                _logger.info("Account Move Data: %s", str(move_data))
-                new_move = models.execute_kw(db, uid, password, 'account.move', 'create', [move_data])
-                _logger.info("New Account Move: %s", str(new_move))
-                move.write({'posted_to_remote': True})
-                # Post the new move
-                # models.execute_kw(db, uid, password, 'account.move', 'action_post', [[new_move]])
-                # _logger.info("Posted Account Move: %s", str(new_move))
-            # self.write({'posted_to_remote': True})
+                    company_id = self._get_remote_id(models, db, uid, password, 'res.company', 'name',
+                                                     move.journal_id.company_id.name)
+                    move_data = self._prepare_move_data(models, db, uid, password, move, company_id)
+                    _logger.info("Account Move Data: %s", str(move_data))
+                    new_move = models.execute_kw(db, uid, password, 'account.move', 'create', [move_data])
+                    _logger.info("New Account Move: %s", str(new_move))
+                    move.write({'posted_to_remote': True})
+                    # Post the new move
+                    # models.execute_kw(db, uid, password, 'account.move', 'action_post', [[new_move]])
+                    _logger.info("Posted Account Move: %s", str(new_move))
+                    self.write({'posted_to_remote': True})
 
         except Exception as e:
             raise ValidationError("Error while sending account move data to remote server: {}".format(e))
@@ -136,7 +142,8 @@ class AccountMove(models.Model):
             'date': move.date,
             'move_type': move.move_type,
             # 'currency_id': currency_id,
-            'journal_id': self._get_remote_id(models, db, uid, password, 'account.journal', 'name', move.journal_id.name),
+            # 'journal_id': self._get_remote_id(models, db, uid, password, 'account.journal', 'name', move.journal_id.name),
+            'journal_id': self._map_journal_to_remote_company(models, db, uid, password, move.journal_id),
             'line_ids': move_lines,
         }
 
@@ -166,6 +173,18 @@ class AccountMove(models.Model):
                 'res.company', 'name', local_company.name
             )
         return remote_company_id
+
+    def _map_journal_to_remote_company(self, models, db, uid, password, journal):
+        remote_journal_id = None
+        if journal:
+            # Get the local company jrnal linked to the branch
+            local_journal = journal
+            # Map to the remote company jrnal by name or another unique field
+            remote_journal_id = self._get_remote_id(
+                models, db, uid, password,
+                'account.journal', 'name', local_journal.name
+            )
+        return remote_journal_id
 
 
 
