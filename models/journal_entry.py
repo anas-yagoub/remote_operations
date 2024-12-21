@@ -25,7 +25,7 @@ class AccountMove(models.Model):
     @api.model
     def action_send_account_moves_to_remote_cron(self):
         # Find all account.move records that are not posted to remote
-        records_to_send = self.search([('posted_to_remote', '=', False),('move_type', '=', 'entry')], limit=10)
+        records_to_send = self.search([('posted_to_remote', '=', False),('move_type', '=', 'entry')], limit=1)
         for rec in records_to_send:
             print("Processing record: ", rec.id)
             rec.send_account_moves_to_remote()
@@ -167,24 +167,59 @@ class AccountMove(models.Model):
         if branch_id:
             # Get the local company linked to the branch
             local_company = branch_id
+            print("*****************local_company", local_company.name)
             # Map to the remote company by name or another unique field
             remote_company_id = self._get_remote_id(
                 models, db, uid, password,
                 'res.company', 'name', local_company.name
             )
+            print("*****************remote_company_id", remote_company_id)
         return remote_company_id
 
+    # def _map_journal_to_remote_company(self, models, db, uid, password, journal):
+    #     remote_journal_id = None
+    #     if journal:
+    #         # Get the local company jrnal linked to the branch
+    #         local_journal = journal
+    #         print("**************************8local_journal", local_journal.name)
+    #         # Map to the remote company jrnal by name or another unique field
+    #         remote_journal_id = self._get_remote_id(
+    #             models, db, uid, password,
+    #             'account.journal', 'name', local_journal.name
+    #         )
+    #         print("**************************remote_journal_id", remote_journal_id)
+
+    #     return remote_journal_id
+    
+    def _get_remote_journal_id(self, models, db, uid, password, model_name, domain=None):
+        # If a domain is provided, use it to search
+        if domain:
+            remote_model = models.execute_kw(db, uid, password, model_name, 'search', [domain])
+        else:
+            raise ValueError("Domain is required to search for remote records.")
+        
+        return remote_model[0] if remote_model else None
+
+    
     def _map_journal_to_remote_company(self, models, db, uid, password, journal):
         remote_journal_id = None
         if journal:
-            # Get the local company jrnal linked to the branch
+            # Get the local company linked to the journal
             local_journal = journal
-            # Map to the remote company jrnal by name or another unique field
-            remote_journal_id = self._get_remote_id(
+            local_company_id = local_journal.company_id.id
+        
+            # Map to the remote company journal by name and company
+            remote_journal_id = self._get_remote_journal_id(
                 models, db, uid, password,
-                'account.journal', 'name', local_journal.name
+                'account.journal', 
+                domain=[
+                    ('name', '=', local_journal.name),
+                    ('company_id', '=', local_company_id)
+                ]
             )
+
         return remote_journal_id
+
 
 
 
