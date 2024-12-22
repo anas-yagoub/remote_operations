@@ -27,8 +27,19 @@ class AccountMove(models.Model):
         # Find all account.move records that are not posted to remote
         records_to_send = self.search([('posted_to_remote', '=', False),('state','=','posted'),('move_type', '=', 'entry')], limit=1)
         for rec in records_to_send:
-            # print("Processing record: ", rec.id)
-            rec.send_account_moves_to_remote()
+            try:
+                rec.send_account_moves_to_remote()
+                # Commit the transaction after successfully processing the record
+                self.env.cr.commit()
+            except Exception as e:
+                # Log the error and continue with the next record
+                _logger.error("Error processing record ID %s: %s", rec.id, str(e))
+                # Commit to avoid reprocessing the record
+                self.env.cr.rollback()
+       
+        # for rec in records_to_send:
+        #     # print("Processing record: ", rec.id)
+        #     rec.send_account_moves_to_remote()
             # rec.posted_to_remote = True
             # print("Done processing record: ", rec.id)
 
@@ -58,7 +69,7 @@ class AccountMove(models.Model):
 
             # start_date = fields.Date.to_date('2024-07-01')
             # # account_moves = self.search([('posted_to_remote', '=', False),('move_type', '=', 'entry')], limit=10)
-            # account_moves = self.sudo().search([('posted_to_remote', '=', False), ('date', '>=', start_date)], limit=10,
+            # account_moves = self.sudo().search([('posted_to_remote', '=', False),('state','=','posted'), ('date', '>=', start_date)], limit=1,
             #    order='date asc')
             # Get related account.move records
             # account_moves = self._get_related_account_moves()
@@ -96,7 +107,7 @@ class AccountMove(models.Model):
                     _logger.info("New Account Move: %s", str(new_move))
                     move.write({'posted_to_remote': True})
                     # Post the new move
-                    # models.execute_kw(db, uid, password, 'account.move', 'action_post', [[new_move]])
+                    models.execute_kw(db, uid, password, 'account.move', 'action_post', [[new_move]])
                     _logger.info("Posted Account Move: %s", str(new_move))
                     self.write({'posted_to_remote': True})
 
