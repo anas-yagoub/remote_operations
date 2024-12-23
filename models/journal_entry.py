@@ -123,15 +123,15 @@ class AccountMove(models.Model):
                 account_to_check = line.account_id.substitute_account.code
 
             #TODO: You could switch accounts_to_check by branch first then to parent..
-            branch_company_id = self._map_branch_to_remote_company(models, db, uid, password, move.branch_id)
-            parent_company_id = self._get_remote_parent_company_id(models, db, uid, password, branch_company_id)
+            # branch_company_id = self._map_branch_to_remote_company(models, db, uid, password, move.branch_id)
+            # parent_company_id = self._get_remote_parent_company_id(models, db, uid, password, branch_company_id)
 
-            print("Parent Company ID: ", parent_company_id)
-            account_id = self._map_account_to_remote_company(models, db, uid, password, \
-                                                             account_to_check, parent_company_id)
+            # print("Parent Company ID: ", parent_company_id)
+            account_id = self._map_account_to_remote_company(models, db, uid, password, company_id, account_to_check)
+            # print("account_idaccount_idaccount_idaccount_id", account_id)
             # account_id = self._get_remote_id(models, db, uid, password, 'account.account', 'code', account_to_check)
             currency_id = self._get_remote_id_if_set(models, db, uid, password, 'res.currency', 'name', line.currency_id)
-
+            # print("currency_idcurrency_idcurrency_id", currency_id)
             # Prepare the analytic distribution
             # analytic_distribution = self._prepare_analytic_distribution(models, db, uid, password, line.analytic_account_id)
             remote_analytic_account_id = self._prepare_analytic_distribution(models, db, uid, password, line.analytic_account_id)
@@ -180,19 +180,18 @@ class AccountMove(models.Model):
 
         return move_data
 
-    def _prepare_invoice_data(self, models, db, uid, password, move):
+    def _prepare_invoice_data(self, models, db, uid, password,company_id, move):
         inv_move_lines = []
         for line in move.invoice_line_ids:
             account_to_check = line.account_id.code
             if line.account_id.substitute_account:
                 account_to_check = line.account_id.substitute_account.code
 
-            branch_company_id = self._map_branch_to_remote_company(models, db, uid, password, move.branch_id)
-            parent_company_id = self._get_remote_parent_company_id(models, db, uid, password, branch_company_id)
+            # branch_company_id = self._map_branch_to_remote_company(models, db, uid, password, move.branch_id)
+            # parent_company_id = self._get_remote_parent_company_id(models, db, uid, password, branch_company_id)
 
             # account_id = self._get_remote_id(models, db, uid, password, 'account.account', 'code', account_to_check)
-            account_id = self._map_account_to_remote_company(models, db, uid, password, \
-                                                             account_to_check, parent_company_id)
+            account_id = self._map_account_to_remote_company(models, db, uid, password, company_id, account_to_check)
 
             currency_id = self._get_remote_id_if_set(models, db, uid, password, 'res.currency', 'name',
                                                      line.currency_id)
@@ -262,10 +261,12 @@ class AccountMove(models.Model):
     def _get_remote_journal_id(self, models, db, uid, password, model_name, domain=None):
         # If a domain is provided, use it to search
         if domain:
+            print(f"domain>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>{domain}")
             remote_model = models.execute_kw(db, uid, password, model_name, 'search', [domain])
+            print(f"remote_model[0]>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>{remote_model[0]}")
+
         else:
             raise ValueError("Domain is required to search for remote records.")
-        
         return remote_model[0] if remote_model else None
 
     def _map_journal_to_remote_company(self, models, db, uid, password, journal):
@@ -286,22 +287,65 @@ class AccountMove(models.Model):
             )
 
         return remote_journal_id
+    
+    # def _map_account_to_remote_company(self, models, db, uid, password, account_to_check):
+    #     if not account_to_check:
+    #         return None
 
-    def _map_account_to_remote_company(self, models, db, uid, password, account_code, company_id):
-        remote_account_id = None
-        if account_code:
-            # Map to the remote company account by code and company (by parent company as example)
-            remote_account_id = self._get_remote_journal_id(
-                models, db, uid, password,
-                'account.account',
-                domain=[
-                    ('code', '=', account_code),
-                    # ('company_ids', 'in', [company_id])
-                ]
-            )
-            print(f"PASSS>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>{remote_account_id}")
+    #     # Get the local company linked to the journal
+    #     local_company_id = account_to_check.company_id.id
 
+    #     # Map to the remote company journal by name and company
+    #     remote_account_id = self._get_remote_account_id(
+    #         models, db, uid, password,
+    #         'account.account',
+    #         domain=[
+    #             ('code', '=', account_to_check.code),  # Correct field access
+    #             ('company_id', '=', local_company_id)
+    #         ]
+    #     )
+    #     return remote_account_id
+
+    # def _map_account_to_remote_company(self, models, db, uid, password, account_to_check, company_id):
+    #     remote_account_id = None
+    #     if account_to_check:
+    #         # Map to the remote company account by code and company (by parent company as example)
+    #         remote_account_id = self._get_remote_journal_id(
+    #             models, db, uid, password,
+    #             'account.account',
+    #             domain=[
+    #                 ('code', '=', account_to_check.code),
+    #                 ('company_ids', 'in', [company_id])
+    #             ]
+                
+    #         )
+    #         print(f"PASSS>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>{remote_account_id}")
+
+    #     return remote_account_id
+    
+    def _map_account_to_remote_company(self, models, db, uid, password, company_id, account_code):
+        """
+        Maps the account code to the remote company's account.
+        """
+        if not account_code:
+            raise ValueError("Account code is required to map the remote account.")
+
+        # Fetch the account ID in the remote database using the account code and company_id
+        remote_account_id = self._get_remote_journal_id(
+            models, db, uid, password,
+            'account.account',
+            domain=[
+                ('code', '=', account_code),  # Match by account code
+                ('company_ids', 'in', [company_id])  # Match by company ID
+            ]
+        )
+
+        if not remote_account_id:
+            raise ValidationError(f"No account found for code {account_code} in the remote company {company_id}.")
+
+        print(f"Mapped Account Code {account_code} to Remote Account ID {remote_account_id}")
         return remote_account_id
+
 
     # def _prepare_analytic_distribution(self, models, db, uid, password, local_analytic_distribution):
     #     remote_analytic_distribution = {}
@@ -321,17 +365,17 @@ class AccountMove(models.Model):
             raise ValidationError(_("No company found in the remote database."))
         return remote_company[0]['id']
 
-    def _get_remote_parent_company_id(self, models, db, uid, password, company_id):
-        # Fetch the first company from the remote database
-        remote_company = models.execute_kw(db, uid, password, 'res.company', 'search_read', [[('id','=', company_id)]],
-                                           {'fields': ['parent_id'], 'limit': 1})
-        if not remote_company:
-            raise ValidationError(_("No parent company found in the remote database."))
+    # def _get_remote_parent_company_id(self, models, db, uid, password, company_id):
+    #     # Fetch the first company from the remote database
+    #     remote_company = models.execute_kw(db, uid, password, 'res.company', 'search_read', [[('id','=', company_id)]],
+    #                                        {'fields': ['parent_id'], 'limit': 1})
+    #     if not remote_company:
+    #         raise ValidationError(_("No parent company found in the remote database."))
 
-        parent_company_id = remote_company[0]['parent_id']
-        print(f"Remote Parent Company ****************************{remote_company}********************************")
+    #     parent_company_id = remote_company[0]['parent_id']
+    #     print(f"Remote Parent Company ****************************{remote_company}********************************")
 
-        return parent_company_id[0]
+    #     return parent_company_id[0]
 
     def _get_remote_id(self, models, db, uid, password, model, field_name, field_value):
         remote_record = models.execute_kw(
