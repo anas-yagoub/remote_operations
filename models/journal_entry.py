@@ -67,17 +67,19 @@ class AccountMove(models.Model):
             uid = common.authenticate(db, username, password, {})
             models = xmlrpc.client.ServerProxy('{}/xmlrpc/2/object'.format(url), allow_none=True)
 
-            # start_date = fields.Date.to_date('2024-07-01')
-            # # account_moves = self.search([('posted_to_remote', '=', False),('move_type', '=', 'entry')], limit=10)
-            # account_moves = self.sudo().search([('posted_to_remote', '=', False),('state','=','posted'), ('date', '>=', start_date)], limit=1,
-            #    order='date asc')
+            start_date = date(2024,7,1).strftime('%d/%m/%Y')
+            # account_moves = self.search([('posted_to_remote', '=', False),('move_type', '=', 'entry')], limit=10)
+            account_moves = self.sudo().search([('posted_to_remote', '=', False), \
+                                                ('state', '=', 'posted'), ('date', '>=', start_date)], limit=10,
+                                               order='date asc')
             # Get related account.move records
             # account_moves = self._get_related_account_moves()
             # account_moves = self.env['account.move'].search([])
             print("**************************************")
-            account_moves = self.search([('posted_to_remote', '=', False),('state','=','posted'), ('move_type', '=', 'entry')], limit=1)
-            print('*********************************', account_moves)
-            print('*********************************', account_moves.line_ids.read([]))
+            # account_moves = self.search(
+            #     [('posted_to_remote', '=', False), ('state', '=', 'posted'), ('date', '>=', start_date)], limit=10)
+            # print('*********************************', account_moves)
+            # print('*********************************', account_moves.line_ids.read([]))
 
             for p in account_moves.line_ids:
                 print(f"******************************** {p.read(['partner_id', 'account_id', 'debit'])}")
@@ -85,7 +87,6 @@ class AccountMove(models.Model):
             for move in account_moves:    
                 if move.journal_id.dont_synchronize:
                     continue
-
                 # Ensure partner exists in remote database
                 for line in move.line_ids:
                     print("*************************** Partner Name", line.partner_id.name)
@@ -99,17 +100,17 @@ class AccountMove(models.Model):
                             remote_partner_id = self._create_remote_partner(models, db, uid, password, line.partner_id)
                             print("*************************** remote_partner_id Name (NEW)", remote_partner_id)
 
-                    company_id = self._get_remote_id(models, db, uid, password, 'res.company', 'name',
-                                                     move.journal_id.company_id.name)
-                    move_data = self._prepare_move_data(models, db, uid, password, move, company_id)
-                    _logger.info("Account Move Data: %s", str(move_data))
-                    new_move = models.execute_kw(db, uid, password, 'account.move', 'create', [move_data])
-                    _logger.info("New Account Move: %s", str(new_move))
-                    move.write({'posted_to_remote': True})
-                    # Post the new move
-                    models.execute_kw(db, uid, password, 'account.move', 'action_post', [[new_move]])
-                    _logger.info("Posted Account Move: %s", str(new_move))
-                    self.write({'posted_to_remote': True})
+                company_id = self._get_remote_id(models, db, uid, password, 'res.company', 'name',
+                                                 move.journal_id.company_id.name)
+                move_data = self._prepare_move_data(models, db, uid, password, move, company_id)
+                _logger.info("Account Move Data: %s", str(move_data))
+                new_move = models.execute_kw(db, uid, password, 'account.move', 'create', [move_data])
+                _logger.info("New Account Move: %s", str(new_move))
+                move.write({'posted_to_remote': True})
+                # Post the new move
+                models.execute_kw(db, uid, password, 'account.move', 'action_post', [[new_move]])
+                _logger.info("Posted Account Move: %s", str(new_move))
+                self.write({'posted_to_remote': True})
 
         except Exception as e:
             raise ValidationError("Error while sending account move data to remote server: {}".format(e))
@@ -121,10 +122,17 @@ class AccountMove(models.Model):
             if line.account_id.substitute_account:
                 account_to_check = line.account_id.substitute_account.code
 
-            account_id = self._get_remote_id(models, db, uid, password, 'account.account', 'code', account_to_check)
+            #TODO: You could switch accounts_to_check by branch first then to parent..
+            branch_company_id = self._map_branch_to_remote_company(models, db, uid, password, move.branch_id)
+            parent_company_id = self._get_remote_parent_company_id(models, db, uid, password, branch_company_id)
+
+            print("Parent Company ID: ", parent_company_id)
+            account_id = self._map_account_to_remote_company(models, db, uid, password, \
+                                                             account_to_check, parent_company_id)
+            # account_id = self._get_remote_id(models, db, uid, password, 'account.account', 'code', account_to_check)
             currency_id = self._get_remote_id_if_set(models, db, uid, password, 'res.currency', 'name', line.currency_id)
-            
-             # Prepare the analytic distribution
+
+            # Prepare the analytic distribution
             # analytic_distribution = self._prepare_analytic_distribution(models, db, uid, password, line.analytic_account_id)
             remote_analytic_account_id = self._prepare_analytic_distribution(models, db, uid, password, line.analytic_account_id)
 
@@ -136,31 +144,79 @@ class AccountMove(models.Model):
                 'partner_id': self._get_remote_id_if_set(models, db, uid, password, 'res.partner', 'name', line.partner_id) or None,
                 'currency_id': currency_id,
                 'amount_currency': line.amount_currency,
-                # 'analytic_distribution': analytic_distribution,
                 'analytic_distribution': {str(remote_analytic_account_id): 100} if remote_analytic_account_id else {},
-
             }
 
+            # if move.move_type == ('out_invoice', 'in_invoice', 'in_receipt', 'out_receipt') and line.date_maturity:
+            #     move_line_data['date_maturity'] = line.date_maturity
+
             move_lines.append((0, 0, move_line_data))
-           
-
-
-        # branch_company_id = self._map_branch_to_remote_company(models, db, uid, password, move.branch_id)
-
         move_data = {
             'patient': move.patient_id.name,
             'company_id': self._map_branch_to_remote_company(models, db, uid, password, move.branch_id),
             'ref': move.ref,
             'date': move.date,
             'move_type': move.move_type,
-            # 'currency_id': currency_id,
+            'currency_id': currency_id,
             # 'journal_id': self._get_remote_id(models, db, uid, password, 'account.journal', 'name', move.journal_id.name),
             'journal_id': self._map_journal_to_remote_company(models, db, uid, password, move.journal_id),
-            'line_ids': move_lines,
         }
 
+        if move.move_type in ('out_invoice', 'in_invoice', 'in_receipt', 'out_receipt'):
+            inv_data = self._prepare_invoice_data(models, db, uid, password, move)
+            move_data['invoice_line_ids'] = inv_data
+            move_data['partner_id'] = self._get_remote_id_if_set(models, db, uid, password, 'res.partner', 'name',
+                                                                       move.partner_id)
+            move_data['invoice_date_due'] = move.invoice_date_due
+            move_data['invoice_date'] = move.invoice_date
+            move_data['invoice_origin'] = move.invoice_origin
+            move_data['payment_reference'] = move.payment_reference
+            move_data['currency_id'] = currency_id
+            move_data['narration'] = move.narration if move.narration else False
+
+        else:
+
+            move_data['line_ids'] = move_lines
+
         return move_data
-    
+
+    def _prepare_invoice_data(self, models, db, uid, password, move):
+        inv_move_lines = []
+        for line in move.invoice_line_ids:
+            account_to_check = line.account_id.code
+            if line.account_id.substitute_account:
+                account_to_check = line.account_id.substitute_account.code
+
+            branch_company_id = self._map_branch_to_remote_company(models, db, uid, password, move.branch_id)
+            parent_company_id = self._get_remote_parent_company_id(models, db, uid, password, branch_company_id)
+
+            # account_id = self._get_remote_id(models, db, uid, password, 'account.account', 'code', account_to_check)
+            account_id = self._map_account_to_remote_company(models, db, uid, password, \
+                                                             account_to_check, parent_company_id)
+
+            currency_id = self._get_remote_id_if_set(models, db, uid, password, 'res.currency', 'name',
+                                                     line.currency_id)
+            # Prepare the analytic distribution
+            remote_analytic_account_id = self._prepare_analytic_distribution(models, db, uid, password,
+                                                                             line.analytic_account_id)
+            tax_ids = [self._get_remote_id('account.tax', 'name', tax) for tax in line['tax_ids']]
+
+            inv_line_data = {
+                'account_id': account_id,
+                'name': line.name,
+                'quantity': line.quantity,
+                'price_unit': line.price_unit,
+                'tax_ids': [(6, 0, tax_ids)] if tax_ids else [],
+                'analytic_distribution': {str(remote_analytic_account_id): 100} if remote_analytic_account_id else {},
+            }
+            inv_move_lines.append((0, 0, inv_line_data))
+
+            print("""..........................................INV LINE DATA........................""")
+            print(f"..........................................{inv_line_data}..............................")
+            print(".......................................................................................")
+
+        return inv_move_lines
+
     def _prepare_analytic_distribution(self, models, db, uid, password, local_analytic_account_id):
         remote_analytic_account_id = None
         
@@ -212,7 +268,6 @@ class AccountMove(models.Model):
         
         return remote_model[0] if remote_model else None
 
-    
     def _map_journal_to_remote_company(self, models, db, uid, password, journal):
         remote_journal_id = None
         if journal:
@@ -232,8 +287,21 @@ class AccountMove(models.Model):
 
         return remote_journal_id
 
+    def _map_account_to_remote_company(self, models, db, uid, password, account_code, company_id):
+        remote_account_id = None
+        if account_code:
+            # Map to the remote company account by code and company (by parent company as example)
+            remote_account_id = self._get_remote_journal_id(
+                models, db, uid, password,
+                'account.account',
+                domain=[
+                    ('code', '=', account_code),
+                    # ('company_ids', 'in', [company_id])
+                ]
+            )
+            print(f"PASSS>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>{remote_account_id}")
 
-
+        return remote_account_id
 
     # def _prepare_analytic_distribution(self, models, db, uid, password, local_analytic_distribution):
     #     remote_analytic_distribution = {}
@@ -252,7 +320,19 @@ class AccountMove(models.Model):
         if not remote_company:
             raise ValidationError(_("No company found in the remote database."))
         return remote_company[0]['id']
-    
+
+    def _get_remote_parent_company_id(self, models, db, uid, password, company_id):
+        # Fetch the first company from the remote database
+        remote_company = models.execute_kw(db, uid, password, 'res.company', 'search_read', [[('id','=', company_id)]],
+                                           {'fields': ['parent_id'], 'limit': 1})
+        if not remote_company:
+            raise ValidationError(_("No parent company found in the remote database."))
+
+        parent_company_id = remote_company[0]['parent_id']
+        print(f"Remote Parent Company ****************************{remote_company}********************************")
+
+        return parent_company_id[0]
+
     def _get_remote_id(self, models, db, uid, password, model, field_name, field_value):
         remote_record = models.execute_kw(
             db, uid, password, model, 'search_read', 
