@@ -75,7 +75,7 @@ class AccountMove(models.Model):
             # Get related account.move records
             # account_moves = self._get_related_account_moves()
             # account_moves = self.env['account.move'].search([])
-            print("**************************************")
+            # print("**************************************")
             # account_moves = self.search(
             #     [('posted_to_remote', '=', False), ('state', '=', 'posted'), ('date', '>=', start_date)], limit=10)
             # print('*********************************', account_moves)
@@ -153,7 +153,7 @@ class AccountMove(models.Model):
             move_lines.append((0, 0, move_line_data))
         move_data = {
             'patient': move.patient_id.name,
-            'company_id': self._map_branch_to_remote_company(models, db, uid, password, move.branch_id),
+            'company_id': self._map_branch_to_remote_company(models, db, uid, password, move.company_id, move.branch_id),
             'ref': move.ref,
             'date': move.date,
             'move_type': move.move_type,
@@ -229,19 +229,83 @@ class AccountMove(models.Model):
         
         return remote_analytic_account_id
     
-    def _map_branch_to_remote_company(self, models, db, uid, password, branch_id):
+    # def _map_branch_to_remote_company(self, models, db, uid, password, branch_id):
+    #     remote_company_id = None
+    #     if branch_id:
+    #         # Get the local company linked to the branch
+    #         local_company = branch_id
+    #         print("*****************local_company", local_company.name)
+    #         # Map to the remote company by name or another unique field
+    #         remote_company_id = self._get_remote_id(
+    #             models, db, uid, password,
+    #             'res.company', 'name', local_company.name
+    #         )
+    #         print("*****************remote_company_id", remote_company_id)
+    #     return remote_company_id
+    
+    # def _map_branch_to_remote_company(self, models, db, uid, password, branch_id=None, company_id=None):
+    #     """
+    #     Map the branch or company to a remote company.
+
+    #     If branch_id is not provided, fall back to using company_id.
+    #     """
+    #     remote_company_id = None
+
+    #     if branch_id:
+    #         # Get the local company linked to the branch
+    #         local_company = branch_id.company_id
+    #         print("*****************local_company from branch", local_company.name)
+    #     elif company_id:
+    #         # Fallback to using company_id if branch_id is not provided
+    #         local_company = company_id
+    #         print("*****************local_company from company_id", local_company.name)
+    #     else:
+    #         raise ValueError("Either branch_id or company_id must be provided to map to a remote company.")
+
+    #     # Map to the remote company by name or another unique field
+    #     remote_company_id = self._get_remote_id(
+    #         models, db, uid, password,
+    #         'res.company', 'name', local_company.name
+    #     )
+    #     print("*****************remote_company_id", remote_company_id)
+
+    
+    def _map_branch_to_remote_company(self, models, db, uid, password, branch_id=None, company_id=None):
+        """
+        Map the branch or company to a remote company.
+
+        If branch_id is not provided or is already a company object, fall back to using company_id.
+        """
         remote_company_id = None
+        local_company = None
+
         if branch_id:
-            # Get the local company linked to the branch
-            local_company = branch_id
-            print("*****************local_company", local_company.name)
-            # Map to the remote company by name or another unique field
-            remote_company_id = self._get_remote_id(
-                models, db, uid, password,
-                'res.company', 'name', local_company.name
-            )
-            print("*****************remote_company_id", remote_company_id)
+            # Check if branch_id is a res.branch or res.company object
+            if hasattr(branch_id, 'company_id'):
+                # branch_id is a res.branch object
+                local_company = branch_id.company_id
+                # print("*****************local_company from branch", local_company.name)
+            else:
+                # branch_id is already a res.company object
+                local_company = branch_id
+                # print("*****************local_company directly from branch as company", local_company.name)
+        elif company_id:
+            # Fallback to using company_id if branch_id is not provided
+            local_company = company_id
+            # print("*****************local_company from company_id", local_company.name)
+        else:
+            raise ValueError("Either branch_id or company_id must be provided to map to a remote company.")
+
+        # Map to the remote company by name or another unique field
+        remote_company_id = self._get_remote_id(
+            models, db, uid, password,
+            'res.company', 'name', local_company.name
+        )
+        # print("*****************remote_company_id", remote_company_id)
+
         return remote_company_id
+
+
 
     # def _map_journal_to_remote_company(self, models, db, uid, password, journal):
     #     remote_journal_id = None
