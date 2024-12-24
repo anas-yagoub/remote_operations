@@ -102,7 +102,7 @@ class AccountMove(models.Model):
 
                 company_id = self._get_remote_id(models, db, uid, password, 'res.company', 'name',
                                                  move.journal_id.company_id.name)
-                move_data = self._prepare_move_data(models, db, uid, password, move, company_id)
+                move_data = self._prepare_move_data(models, db, uid, password, move, move.company_id.id)
                 _logger.info("Account Move Data: %s", str(move_data))
                 new_move = models.execute_kw(db, uid, password, 'account.move', 'create', [move_data])
                 _logger.info("New Account Move: %s", str(new_move))
@@ -126,9 +126,10 @@ class AccountMove(models.Model):
             # branch_company_id = self._map_branch_to_remote_company(models, db, uid, password, move.branch_id)
             # parent_company_id = self._get_remote_parent_company_id(models, db, uid, password, branch_company_id)
 
-            # print("Parent Company ID: ", parent_company_id)
+            print("Original Account: ", account_to_check, line.account_id.name,line.account_id.company_id.name)
+            
             account_id = self._map_account_to_remote_company(models, db, uid, password, company_id, account_to_check)
-            # print("account_idaccount_idaccount_idaccount_id", account_id)
+            print("account_idaccount_idaccount_idaccount_id", account_id)
             # account_id = self._get_remote_id(models, db, uid, password, 'account.account', 'code', account_to_check)
             currency_id = self._get_remote_id_if_set(models, db, uid, password, 'res.currency', 'name', line.currency_id)
             # print("currency_idcurrency_idcurrency_id", currency_id)
@@ -153,7 +154,7 @@ class AccountMove(models.Model):
             move_lines.append((0, 0, move_line_data))
         move_data = {
             'patient': move.patient_id.name,
-            'company_id': self._map_branch_to_remote_company(models, db, uid, password, move.company_id, move.branch_id),
+            'company_id': self._map_branch_to_remote_company(models, db, uid, password, move.branch_id, move.company_id),
             'ref': move.ref,
             'date': move.date,
             'move_type': move.move_type,
@@ -163,10 +164,16 @@ class AccountMove(models.Model):
         }
 
         if move.move_type in ('out_invoice', 'in_invoice', 'in_receipt', 'out_receipt'):
-            inv_data = self._prepare_invoice_data(models, db, uid, password, move)
-            move_data['invoice_line_ids'] = inv_data
-            move_data['partner_id'] = self._get_remote_id_if_set(models, db, uid, password, 'res.partner', 'name',
+            inv_data = self._prepare_invoice_data(models, db, uid, password, move.company_id.id, move)
+            partner_found = self._get_remote_id_if_set(models, db, uid, password, 'res.partner', 'name',
                                                                        move.partner_id)
+            if not partner_found:
+                remote_partner_id = self._create_remote_partner(models, db, uid,password, move.partner_id)
+                move_data['partner_id'] = remote_partner_id
+            else:
+                move_data['partner_id'] = partner_found
+
+            move_data['invoice_line_ids'] = inv_data
             move_data['invoice_date_due'] = move.invoice_date_due
             move_data['invoice_date'] = move.invoice_date
             move_data['invoice_origin'] = move.invoice_origin
@@ -281,13 +288,13 @@ class AccountMove(models.Model):
 
         if branch_id:
             # Check if branch_id is a res.branch or res.company object
-            if hasattr(branch_id, 'company_id'):
-                # branch_id is a res.branch object
-                local_company = branch_id.company_id
-                # print("*****************local_company from branch", local_company.name)
-            else:
+            # if hasattr(branch_id, 'company_id'):
+            #     # branch_id is a res.branch object
+            #     local_company = branch_id.company_id
+            #     # print("*****************local_company from branch", local_company.name)
+            # else:
                 # branch_id is already a res.company object
-                local_company = branch_id
+            local_company = branch_id
                 # print("*****************local_company directly from branch as company", local_company.name)
         elif company_id:
             # Fallback to using company_id if branch_id is not provided
@@ -327,8 +334,7 @@ class AccountMove(models.Model):
         if domain:
             print(f"domain>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>{domain}")
             remote_model = models.execute_kw(db, uid, password, model_name, 'search', [domain])
-            print(f"remote_model[0]>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>{remote_model[0]}")
-
+            print(f"remote_model[0]>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>{remote_model}")
         else:
             raise ValueError("Domain is required to search for remote records.")
         return remote_model[0] if remote_model else None
@@ -401,7 +407,7 @@ class AccountMove(models.Model):
             domain=[
                 ('code', '=', account_code),  # Match by account code
                 ('company_ids', 'in', [company_id])  # Match by company ID
-            ]
+            ],
         )
 
         if not remote_account_id:
