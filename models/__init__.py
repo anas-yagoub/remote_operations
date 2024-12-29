@@ -6,3 +6,4 @@ from . import account
 # from . import requisitions
 from . import journal_entry
 from . import res_partner
+from . import account_payment

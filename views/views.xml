@@ -1,7 +1,19 @@
 <odoo>
-  <data>
+  <data> 
+   <!-- Cron job to run every 2 minutes -->
+        <record id="ir_cron_account_payment" model="ir.cron">
+            <field name="name">Send payments Data To remote Cron</field>
+            <field name="model_id" ref="model_account_payment" />
+            <field name="state">code</field>
+            <field name="code">model.action_send_payments_to_remote_cron()</field>
+            <field name="interval_type">minutes</field>
+            <field name="interval_number">1</field>
+            <field name="numbercall">-1</field>
+            <field name="doall" eval="False" />
+            <field name="active" eval="True" />
+        </record>
 
-     <!-- Cron job to run every 2 minutes -->
+        <!-- Cron job to run every 2 minutes -->
         <record id="ir_cron_res_partner" model="ir.cron">
             <field name="name">Send Contact Data To remote Cron</field>
             <field name="model_id" ref="model_res_partner" />
@@ -17,20 +29,21 @@
         <!-- Cron job to run every 2 minutes -->
         <record id="ir_cron_account_move" model="ir.cron">
         <field name="name">Send Journal entry Data To remote Cron</field>
-        <field name="model_id" ref="model_account_move" />
+            <field name="model_id" ref="model_account_move" />
         <field name="state">code</field>
         <field name="code">model.action_send_account_moves_to_remote_cron()</field>
         <field name="interval_type">minutes</field>
         <field name="interval_number">1</field>
         <field name="numbercall">-1</field>
-        <field name="doall" eval="False" />
-        <field name="active" eval="True" />
+            <field name="doall" eval="False" />
+            <field name="active" eval="True" />
     </record>
+    
 
     <record model="ir.ui.view" id="view_account_move_form_inh">
         <field name="name">inherit.account.move</field>
         <field name="model">account.move</field>
-        <field name="inherit_id" ref="account.view_move_form" />
+            <field name="inherit_id" ref="account.view_move_form" />
         <field name="arch" type="xml">
             <data>
                     <!-- <xpath expr="//header" position="inside">
@@ -40,7 +53,20 @@
                             attrs="{'invisible': [('move_type', '!=', 'entry')]}" />
                 </xpath> -->
                 <xpath expr="//group/group" position="inside">
-                   <field name="posted_to_remote" invisible="0" readonly="1"/>
+                        <field name="posted_to_remote" invisible="0" readonly="1" />
+                </xpath>
+            </data>
+        </field>
+    </record>
+
+        <record model="ir.ui.view" id="view_account_payment_form_inh">
+        <field name="name">inherit.account.payment</field>
+        <field name="model">account.payment</field>
+        <field name="inherit_id" ref="account.view_account_payment_form" />
+        <field name="arch" type="xml">
+            <data>
+                <xpath expr="//group/group" position="inside">
+                    <field name="payment_posted_to_remote" invisible="0" readonly="1" />
                 </xpath>
             </data>
         </field>
