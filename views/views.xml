@@ -14,7 +14,7 @@
         </record>
 
         <!-- Cron job to run every 2 minutes -->
-        <!-- <record id="ir_cron_res_partner" model="ir.cron">
+        <record id="ir_cron_res_partner" model="ir.cron">
             <field name="name">Send Contact Data To remote Cron</field>
             <field name="model_id" ref="model_res_partner" />
             <field name="state">code</field>
@@ -24,10 +24,10 @@
             <field name="numbercall">-1</field>
             <field name="doall" eval="False" />
             <field name="active" eval="True" />
-        </record> -->
+        </record>
 
         <!-- Cron job to run every 2 minutes -->
-        <!-- <record id="ir_cron_account_move" model="ir.cron">
+        <record id="ir_cron_account_move" model="ir.cron">
         <field name="name">Send Journal entry Data To remote Cron</field>
             <field name="model_id" ref="model_account_move" />
         <field name="state">code</field>
@@ -37,7 +37,7 @@
         <field name="numbercall">-1</field>
             <field name="doall" eval="False" />
             <field name="active" eval="True" />
-    </record> -->
+    </record>
     
 
     <record model="ir.ui.view" id="view_account_move_form_inh">
@@ -54,6 +54,7 @@
                 </xpath> -->
                 <xpath expr="//group/group" position="inside">
                         <field name="posted_to_remote" invisible="0" readonly="1" />
+                        <field name="failed_to_sync" invisible="0" readonly="1" />
                 </xpath>
             </data>
         </field>
