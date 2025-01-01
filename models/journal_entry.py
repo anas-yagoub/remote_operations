@@ -351,6 +351,8 @@ class AccountMove(models.Model):
 
         print(f"Mapped Account Code {account_code} to Remote Account ID {remote_account_id}")
         return remote_account_id
+    
+    
 
 
     # def _prepare_analytic_distribution(self, models, db, uid, password, local_analytic_distribution):
@@ -449,8 +451,189 @@ class AccountMove(models.Model):
             'property_account_payable_id': property_account_payable_id,
 
         }
-        print("*************************************** partner data", partner_data)
         return models.execute_kw(db, uid, password, 'res.partner', 'create', [partner_data])
 
+    
+    @api.model
+    def action_send_invoice_to_remote_cron(self):
+        # Find all account.move records that are not posted to remote
+        records_to_send = self.search([('posted_to_remote', '=', False),('state','=','posted'),('move_type', '!=', 'entry'),('failed_to_sync', '=', False)], limit=10)
+       
+        for rec in records_to_send:
+            try:
+                rec.send_invoice_to_remote()
+                # Commit the transaction after successfully processing the record
+                self.env.cr.commit()
+            except Exception as e:
+                # Log the error
+                _logger.error("Error processing record ID %s: %s", rec.id, str(e))
+                # Rollback any partial changes and mark the record as failed
+                self.env.cr.rollback()
+                rec.write({'failed_to_sync': True})  # Mark record as failed to prevent retries
+    
+    
+    def send_invoice_to_remote(self):
+        # Get configuration parameters
+        config_parameters = self.env['ir.config_parameter'].sudo()
+
+        remote_type = config_parameters.get_param('remote_operations.remote_type')
+        if remote_type != 'Branch Database':
+            _logger.info("Database is not configured as 'Branch Database'. Skipping sending account moves to remote.")
+            return
+        
+        url = config_parameters.get_param('remote_operations.url')
+        db = config_parameters.get_param('remote_operations.db')
+        username = config_parameters.get_param('remote_operations.username')
+        password = config_parameters.get_param('remote_operations.password')
+
+        # Validate settings
+        if not all([url, db, username, password]):
+            raise ValidationError("Remote server settings must be fully configured (URL, DB, Username, Password)")
+
+        # Create XML-RPC connection and send data
+        try:
+            common = xmlrpc.client.ServerProxy('{}/xmlrpc/2/common'.format(url), allow_none=True)
+            uid = common.authenticate(db, username, password, {})
+            models = xmlrpc.client.ServerProxy('{}/xmlrpc/2/object'.format(url), allow_none=True)
+
+            start_date = date(2024,7,1).strftime('%d/%m/%Y')
+            # account_moves = self.search([('posted_to_remote', '=', False),('move_type', '=', 'entry')], limit=10)
+            account_moves = self.sudo().search([('posted_to_remote', '=', False), \
+                                                ('state', '=', 'posted'), ('move_type', '!=', 'entry') ,('failed_to_sync', '=', False),('date', '>=', start_date)], limit=10,
+                                               order='date asc')
+        
+            for p in account_moves.invoice_line_ids:
+                print(f"******************************** {p.read(['partner_id', 'account_id', 'debit'])}")
+
+            for move in account_moves:    
+                if move.journal_id.dont_synchronize:
+                    continue
+                # Ensure partner exists in remote database
+                if move.partner_id:
+                    remote_partner_id = self._get_remote_id_if_set(models, db, uid, password, 'res.partner', 'name',
+                                                                    move.partner_id)
+                    print("*************************** remote_partner_id Name", remote_partner_id)
+                    if not remote_partner_id and move.partner_id:
+                        # Create partner in remote database
+                        remote_partner_id = self._create_remote_partner(models, db, uid, password, move.partner_id)
+                        print("*************************** remote_partner_id Name (NEW)", remote_partner_id)
+
+                company_id = self._get_remote_id(models, db, uid, password, 'res.company', 'name',
+                                                 move.journal_id.company_id.name)
+                move_data = self._prepare_invoice_data(models, db, uid, password, move, move.company_id.id)
+                _logger.info("Account Move Data: %s", str(move_data))
+                new_move = models.execute_kw(db, uid, password, 'account.move', 'create', [move_data])
+                _logger.info("New Account Move: %s", str(new_move))
+                move.write({'posted_to_remote': True})
+                # Post the new move
+                models.execute_kw(db, uid, password, 'account.move', 'action_post', [[new_move]])
+                _logger.info("Posted Account Move: %s", str(new_move))
+                self.write({'posted_to_remote': True})
+
+        except Exception as e:
+            raise ValidationError("Error while sending account move data to remote server: {}".format(e))    
+    
+    
+    
+    def _get_remote_tax_id(self, models, db, uid, password, model, field_name, field_value, company_id):
+        """
+        Fetches the remote tax ID based on the field value and company ID.
+        """
+        domain = [
+            (field_name, '=', field_value), 
+            '|',  
+            ('company_id', '=', company_id),
+            ('company_id', '=', False), 
+            ('active', '=', True)
+        ]
+
+        _logger.info("Fetching remote tax ID with domain: %s", domain)
+
+        remote_record = models.execute_kw(
+            db, uid, password, model, 'search_read', 
+            [domain], 
+            {'fields': ['id', field_name, 'company_id'], 'limit': 1}
+        )
+        _logger.info("Remote record result: %s", remote_record)
+
+        if not remote_record:
+            _logger.warning(
+                "No tax found for model '%s', field '%s' = '%s', company_id '%s'.",
+                model, field_name, field_value, company_id
+            )
+            return None 
+
+        return remote_record[0]['id']
+            
+
+    
+    def _prepare_invoice_data(self, models, db, uid, password, move,company_id):
+        move_lines = []
+        for line in move.invoice_line_ids:
+            account_to_check = line.account_id.code
+            if line.account_id.substitute_account:
+                account_to_check = line.account_id.substitute_account.code
+
+            account_id = self._map_account_invoice_to_remote_company(models, db, uid, password, move, account_to_check)
+            currency_id = self._get_remote_id_if_set(models, db, uid, password, 'res.currency', 'name', move.currency_id)
+            remote_analytic_account_id = self._prepare_analytic_distribution(models, db, uid, password, line.analytic_account_id)
+            tax_ids = [
+                self._get_remote_tax_id(
+                    models, db, uid, password, 
+                    'account.tax', 'name', tax.name, move.company_id.id
+                )
+                for tax in line.tax_ids
+            ]
+
+            move_line_data = {
+                'account_id': account_id,
+                'name': line.name,
+                'analytic_distribution': {str(remote_analytic_account_id): 100} if remote_analytic_account_id else {} or None,
+                'quantity': line.quantity or None,
+                'price_unit': line.price_unit or None,
+                'tax_ids': [(6, 0, tax_ids)] or None,
+
+            }
+            move_lines.append((0, 0, move_line_data))
+
+        move_data = {
+            'partner_id': self._get_remote_id_if_set(models, db, uid, password, 'res.partner', 'name', move.partner_id) or None,
+            'patient': move.patient_id.name or None,
+            'company_id': self._map_branch_to_remote_company(models, db, uid, password, move.branch_id, move.company_id) or None,
+            'payment_reference': move.payment_reference or None,
+            'invoice_date': move.invoice_date or None,
+            'invoice_date_due': move.invoice_date_due or None,
+            'invoice_origin': move.invoice_origin or None,
+            'narration': move.narration or None,
+            'move_type': move.move_type or None,
+            'currency_id': currency_id or None,
+            'journal_id': self._map_journal_to_remote_company(models, db, uid, password, move.journal_id) or None,
+            'invoice_line_ids': move_lines,
+        }
+
+        return move_data    
+    
+    def _map_account_invoice_to_remote_company(self, models, db, uid, password, move, account_code):
+        """
+        Maps the account code to the remote company's account.
+        """
+        if not account_code:
+            raise ValueError("Account code is required to map the remote account.")
+
+        # Fetch the account ID in the remote database using the account code and company_id
+        remote_account_id = self._get_remote_journal_id(
+            models, db, uid, password,
+            'account.account',
+            domain=[
+                ('code', '=', account_code),  # Match by account code
+                ('company_ids', 'in', [move.company_id.id])  # Match by company ID
+            ],
+        )
+
+        if not remote_account_id:
+            raise ValidationError(f"No account found for code {account_code} in the remote company {move.company_id.id}.")
+
+        print(f"Mapped Account Code {account_code} to Remote Account ID {remote_account_id}")
+        return remote_account_id
     
     
