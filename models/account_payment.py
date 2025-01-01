@@ -63,14 +63,15 @@ class AccountPayment(models.Model):
                     payment_data = payment._prepare_payment_data(models, db, uid, password)
                     _logger.info("Payment Data: %s", payment_data)
 
-                    existing_payment = models.execute_kw(db, uid, password, 'account.payment', 'search', [[('memo', '=', payment.ref)]])
-                    if existing_payment:
-                        _logger.warning("Payment %s already exists on remote with ID %s", payment.ref, existing_payment[0])
-                        payment.write({'payment_posted_to_remote': True})
-                        continue
+                    # existing_payment = models.execute_kw(db, uid, password, 'account.payment', 'search', [[('memo', '=', payment.ref)]])
+                    # if existing_payment:
+                    #     _logger.warning("Payment %s already exists on remote with ID %s", payment.ref, existing_payment[0])
+                    #     payment.write({'payment_posted_to_remote': True})
+                    #     continue
 
                     new_payment_id = models.execute_kw(db, uid, password, 'account.payment', 'create', [payment_data])
                     models.execute_kw(db, uid, password, 'account.payment', 'action_post', [[new_payment_id]])
+                    _logger.info("Payment Has been created *********************: %s", new_payment_id)
 
                     payment.write({'payment_posted_to_remote': True})
                     self.env.cr.commit()

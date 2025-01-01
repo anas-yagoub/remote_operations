@@ -498,9 +498,12 @@ class AccountMove(models.Model):
 
             start_date = date(2024,7,1).strftime('%d/%m/%Y')
             # account_moves = self.search([('posted_to_remote', '=', False),('move_type', '=', 'entry')], limit=10)
+            # account_moves = self.sudo().search([('posted_to_remote', '=', False), \
+            #                                     ('state', '=', 'posted'), ('move_type', '!=', 'entry') ,('failed_to_sync', '=', False),('date', '>=', start_date)], limit=10,
+            #                                    order='date asc')
             account_moves = self.sudo().search([('posted_to_remote', '=', False), \
-                                                ('state', '=', 'posted'), ('move_type', '!=', 'entry') ,('failed_to_sync', '=', False),('date', '>=', start_date)], limit=10,
-                                               order='date asc')
+                                                ('state', '=', 'posted'), ('move_type', '!=', 'entry') ,('failed_to_sync', '=', False)], limit=10,
+                                              )
         
             for p in account_moves.invoice_line_ids:
                 print(f"******************************** {p.read(['partner_id', 'account_id', 'debit'])}")
@@ -529,6 +532,31 @@ class AccountMove(models.Model):
                 models.execute_kw(db, uid, password, 'account.move', 'action_post', [[new_move]])
                 _logger.info("Posted Account Move: %s", str(new_move))
                 self.write({'posted_to_remote': True})
+                
+                # Now reconcile payments with the new remote invoice
+                payments = self.env['account.payment'].search([])  # Fetch payments related to the invoice
+
+                if payments:
+                    for payment in payments:
+                        
+                        # Fetch payment lines from the payment
+                        for rec1 in payment.move_id.line_ids.filtered(lambda x: x.account_internal_type in ('asset_receivable', 'liability_payable') and not x.reconciled):
+                            # Reconcile the payment line with the invoice remotely
+                            
+                            reconciled_result = models.execute_kw(db, uid, password, 'account.move', 'js_assign_outstanding_line', [rec1.id])
+                            _logger.info("Reconciled payment line %s with invoice %s", rec1.id, move.id)
+               
+                
+                # payments = self.env['account.payment'].search([])
+                # print("Payment******************************88", payments)
+
+                # if payments:
+                #     for payment in payments:
+                #         # Loop through the payment lines of the payment and reconcile
+                #         for rec1 in payment.move_id.line_ids.filtered(lambda x: x.account_type in ('asset_receivable', 'liability_payable') and not x.reconciled):
+                #             # Ensure you're passing the ID or another valid attribute, not the entire record
+                #             reconciled_result = move.sudo().js_assign_outstanding_line(rec1.id)
+                #             _logger.info("Reconciled payment line %s with invoice %s", rec1.id, move.id)
 
         except Exception as e:
             raise ValidationError("Error while sending account move data to remote server: {}".format(e))    
