@@ -534,17 +534,17 @@ class AccountMove(models.Model):
                 self.write({'posted_to_remote': True})
                 
                 # Now reconcile payments with the new remote invoice
-                payments = self.env['account.payment'].search([])  # Fetch payments related to the invoice
+                # payments = self.env['account.payment'].search([])  # Fetch payments related to the invoice
 
-                if payments:
-                    for payment in payments:
+                # if payments:
+                #     for payment in payments:
                         
-                        # Fetch payment lines from the payment
-                        for rec1 in payment.move_id.line_ids.filtered(lambda x: x.account_internal_type in ('asset_receivable', 'liability_payable') and not x.reconciled):
-                            # Reconcile the payment line with the invoice remotely
+                #         # Fetch payment lines from the payment
+                #         for rec1 in payment.move_id.line_ids.filtered(lambda x: x.account_internal_type in ('asset_receivable', 'liability_payable') and not x.reconciled):
+                #             # Reconcile the payment line with the invoice remotely
                             
-                            reconciled_result = models.execute_kw(db, uid, password, 'account.move', 'js_assign_outstanding_line', [rec1.id])
-                            _logger.info("Reconciled payment line %s with invoice %s", rec1.id, move.id)
+                #             reconciled_result = models.execute_kw(db, uid, password, 'account.move', 'js_assign_outstanding_line', [rec1.id])
+                #             _logger.info("Reconciled payment line %s with invoice %s", rec1.id, move.id)
                
                 
                 # payments = self.env['account.payment'].search([])
