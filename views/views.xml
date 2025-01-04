@@ -10,7 +10,7 @@
             <field name="interval_number">1</field>
             <field name="numbercall">-1</field>
             <field name="doall" eval="False" />
-            <field name="active" eval="True" />
+            <field name="active" eval="False" />
         </record>
 
         <!-- Cron job to run every 2 minutes -->
@@ -36,7 +36,7 @@
         <field name="interval_number">2</field>
         <field name="numbercall">-1</field>
             <field name="doall" eval="False" />
-            <field name="active" eval="True" />
+            <field name="active" eval="False" />
     </record>
 
     <record id="ir_cron_invoice" model="ir.cron">
@@ -45,7 +45,7 @@
         <field name="state">code</field>
         <field name="code">model.action_send_invoice_to_remote_cron()</field>
         <field name="interval_type">minutes</field>
-        <field name="interval_number">3</field>
+        <field name="interval_number">1</field>
         <field name="numbercall">-1</field>
         <field name="doall" eval="False" />
         <field name="active" eval="True" />
