@@ -5,7 +5,7 @@
             <field name="name">Send payments Data To remote Cron</field>
             <field name="model_id" ref="model_account_payment" />
             <field name="state">code</field>
-            <field name="code">model.action_send_payments_to_remote_cron()</field>
+            <field name="code">model.send_payment_to_remote()</field>
             <field name="interval_type">minutes</field>
             <field name="interval_number">1</field>
             <field name="numbercall">-1</field>
@@ -79,7 +79,8 @@
         <field name="arch" type="xml">
             <data>
                 <xpath expr="//group/group" position="inside">
-                    <field name="payment_posted_to_remote" invisible="0" readonly="0" />
+                    <field name="payment_posted_to_remote" invisible="0" readonly="1" />
+                    <!-- <field name="failed_to_sync" readonly="1" /> -->
                 </xpath>
             </data>
         </field>
