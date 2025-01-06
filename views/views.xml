@@ -1,6 +1,22 @@
 <odoo>
   <data> 
+
+      
    <!-- Cron job to run every 2 minutes -->
+
+        <record id="ir_cron_currency_rate" model="ir.cron">
+            <field name="name">Send currency rate Data To remote Cron</field>
+            <field name="model_id" ref="model_res_currency_rate" />
+            <field name="state">code</field>
+            <field name="code">model.send_currency_rate_to_remote()</field>
+            <field name="interval_type">minutes</field>
+            <field name="interval_number">1</field>
+            <field name="numbercall">-1</field>
+            <field name="doall" eval="False" />
+            <field name="active" eval="True" />
+        </record>
+
+
         <record id="ir_cron_account_payment" model="ir.cron">
             <field name="name">Send payments Data To remote Cron</field>
             <field name="model_id" ref="model_account_payment" />
@@ -13,7 +29,6 @@
             <field name="active" eval="True" />
         </record>
 
-        <!-- Cron job to run every 2 minutes -->
         <record id="ir_cron_res_partner" model="ir.cron">
             <field name="name">Send Contact Data To remote Cron</field>
             <field name="model_id" ref="model_res_partner" />
@@ -26,7 +41,6 @@
             <field name="active" eval="True" />
         </record>
 
-        <!-- Cron job to run every 2 minutes -->
     <record id="ir_cron_account_move" model="ir.cron">
         <field name="name">Send Journal entry Data To remote Cron</field>
             <field name="model_id" ref="model_account_move" />
@@ -36,7 +50,7 @@
         <field name="interval_number">1</field>
         <field name="numbercall">-1</field>
             <field name="doall" eval="False" />
-            <field name="active" eval="False" />
+            <field name="active" eval="True" />
     </record>
 
     <record id="ir_cron_invoice" model="ir.cron">
@@ -50,6 +64,21 @@
         <field name="doall" eval="False" />
         <field name="active" eval="True" />
     </record>
+
+        <!-- <record model="ir.ui.view" id="view_res_currency_rate_form_inh">
+        <field name="name">inherit.res.currency.rate</field>
+        <field name="model">res.currency.rate</field>
+        <field name="inherit_id" ref="base.view_currency_form" />
+        <field name="arch" type="xml">
+            <data>
+                    <xpath expr="//field[@name='rate_ids']/tree/field[@name='company_id']"
+                        position="after">
+                        <field name="posted_to_remote" />
+                        <field name="failed_to_sync" />
+                </xpath>
+            </data>
+        </field>
+    </record> -->
     
 
     <record model="ir.ui.view" id="view_account_move_form_inh">
@@ -80,7 +109,7 @@
             <data>
                 <xpath expr="//group/group" position="inside">
                     <field name="payment_posted_to_remote" invisible="0" readonly="1" />
-                    <!-- <field name="failed_to_sync" readonly="1" /> -->
+                        <!-- <field name="failed_to_sync" readonly="1" /> -->
                 </xpath>
             </data>
         </field>

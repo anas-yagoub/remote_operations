@@ -7,3 +7,4 @@ from . import account
 from . import journal_entry
 from . import res_partner
 from . import account_payment
+from . import currencies_rate
