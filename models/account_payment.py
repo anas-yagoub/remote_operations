@@ -21,7 +21,7 @@ class AccountPayment(models.Model):
     # @api.model
     # def action_send_payments_to_remote_cron(self):
     #     """Cron job to send payments to the remote server."""
-    #     start_date = date(2024, 7, 1).strftime('%d/%m/%Y')
+    #     start_date = date(2024, 7, 1).isoformat()
     #     payments = self.search([('payment_posted_to_remote', '=', False),('is_internal_transfer', '=', False), ('state', '=', 'posted'), ('date', '>=', start_date)], order='date asc', limit=10)
     #     for payment in payments:
     #         try:
@@ -52,7 +52,7 @@ class AccountPayment(models.Model):
             uid = common.authenticate(db, username, password, {})
             models = xmlrpc.client.ServerProxy('{}/xmlrpc/2/object'.format(url), allow_none=True)
 
-            start_date = date(2024, 7, 1).strftime('%d/%m/%Y')
+            start_date = date(2024, 7, 1).isoformat()
             payments = self.search([
                 ('payment_posted_to_remote', '=', False),
                 # ('failed_to_sync', '=', False),
@@ -216,7 +216,7 @@ class AccountPayment(models.Model):
 #     @api.model
 #     def action_send_payments_to_remote_cron(self):
 #         """Cron job to send payments to the remote server."""
-#         start_date = date(2024, 7, 1).strftime('%d/%m/%Y')
+#         start_date = date(2024, 7, 1).isoformat()
 #         payments = self.search([('payment_posted_to_remote', '=', False),('is_internal_transfer', '=', False), ('state', '=', 'posted'), ('date', '>=', start_date)], order='date asc', limit=10)
 #         for payment in payments:
 #             try:
@@ -247,7 +247,7 @@ class AccountPayment(models.Model):
 #             uid = common.authenticate(db, username, password, {})
 #             models = xmlrpc.client.ServerProxy('{}/xmlrpc/2/object'.format(url), allow_none=True)
 
-#             start_date = date(2024, 7, 1).strftime('%d/%m/%Y')
+#             start_date = date(2024, 7, 1).isoformat()
 #             payments = self.search([
 #                 ('payment_posted_to_remote', '=', False),
 #                 ('is_internal_transfer', '=', False),

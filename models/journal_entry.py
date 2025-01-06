@@ -64,7 +64,7 @@ class AccountMove(models.Model):
             uid = common.authenticate(db, username, password, {})
             models = xmlrpc.client.ServerProxy('{}/xmlrpc/2/object'.format(url), allow_none=True)
 
-            start_date = date(2024,7,1).strftime('%d/%m/%Y')
+            start_date = date(2024,7,1).isoformat()
             # account_moves = self.search([('posted_to_remote', '=', False),('move_type', '=', 'entry')], limit=10)
             account_moves = self.sudo().search([('posted_to_remote', '=', False), \
                                                 ('state', '=', 'posted'), ('move_type', '=', 'entry'), ('journal_id.type', '=', 'general') ,('failed_to_sync', '=', False),('date', '>=', start_date)], limit=10,
@@ -251,7 +251,7 @@ class AccountMove(models.Model):
 #             uid = common.authenticate(db, username, password, {})
 #             models = xmlrpc.client.ServerProxy('{}/xmlrpc/2/object'.format(url), allow_none=True)
 
-#             start_date = date(2024,7,1).strftime('%d/%m/%Y')
+#             start_date = date(2024,7,1).isoformat()
 #             # account_moves = self.search([('posted_to_remote', '=', False),('move_type', '=', 'entry')], limit=10)
 #             account_moves = self.sudo().search([('posted_to_remote', '=', False), \
 #                                                 ('state', '=', 'posted'), ('move_type', '=', 'entry'), ('journal_id.type', '=', 'general') ,('failed_to_sync', '=', False),('date', '>=', start_date)], limit=1,
@@ -707,7 +707,7 @@ class AccountMove(models.Model):
         uid = common.authenticate(db, username, password, {})
         models = xmlrpc.client.ServerProxy('{}/xmlrpc/2/object'.format(url), allow_none=True)
 
-        start_date = date(2024,7,1).strftime('%d/%m/%Y')
+        start_date = date(2024,7,1).isoformat()
         # account_moves = self.search([('posted_to_remote', '=', False),('move_type', '=', 'entry')], limit=10)
         account_moves = self.sudo().search([('posted_to_remote', '=', False), \
                                             ('state', '=', 'posted'), ('move_type', '!=', 'entry'),
