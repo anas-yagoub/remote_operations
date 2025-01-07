@@ -814,41 +814,43 @@ class AccountMove(models.Model):
         move_lines = []
         partner = False
         for line in move.invoice_line_ids:
-            """Reroute accounts according to product's account, or category or \
-            line.account_id as per posted (last resort) """
+            # """Reroute accounts according to product's account, or category or \
+            # line.account_id as per posted (last resort) """
+            #
+            # product_id = self.env['product.product'].search([
+            #     '|',
+            #     '|',
+            #     ('id', '=', line.product_id.id),
+            #     ('name', '=', line.product_id.name),
+            #     ('name', '=', line.name)
+            # ], limit=1)
+            #
+            # product_account_income = False
+            # product_account_expense = False
+            # product_account_income_category = False
+            # product_account_expense_category = False
+            # product_account = False
+            #
+            # if product_id:
+            #     product_account_income = product_id.property_account_income_id
+            #     product_account_expense = product_id.property_account_expense_id
+            #     product_account_income_category = product_id.categ_id.property_account_income_categ_id
+            #     product_account_expense_category = product_id.categ_id.property_account_expense_categ_id
+            #
+            # _logger.info(f"\nProduct Obtained: {product_id.read(['name'])} \n-------------")
+            # if move.move_type in ['out_invoice', 'out_refund', 'out_receipt']:
+            #     product_account = product_account_income if product_account_income else product_account_income_category
+            # elif move.move_type in ['in_invoice', 'in_refund', 'in_receipt']:
+            #     product_account = product_account_expense if product_account_expense else \
+            #         product_account_expense_category
+            # else:
+            #     product_account = False
+            #
+            # _logger.info(f"\nProduct Account: {product_account} \n-------------")
 
-            product_id = self.env['product.product'].search([
-                '|',
-                '|',
-                ('id', '=', line.product_id.id),
-                ('name', '=', line.product_id.name),
-                ('name', '=', line.name)
-            ], limit=1)
+            # account = product_account if product_account else line.account_id
 
-            product_account_income = False
-            product_account_expense = False
-            product_account_income_category = False
-            product_account_expense_category = False
-            product_account = False
-
-            if product_id:
-                product_account_income = product_id.property_account_income_id
-                product_account_expense = product_id.property_account_expense_id
-                product_account_income_category = product_id.categ_id.property_account_income_categ_id
-                product_account_expense_category = product_id.categ_id.property_account_expense_categ_id
-
-            _logger.info(f"\nProduct Obtained: {product_id.read(['name'])} \n-------------")
-            if move.move_type in ['out_invoice', 'out_refund', 'out_receipt']:
-                product_account = product_account_income if product_account_income else product_account_income_category
-            elif move.move_type in ['in_invoice', 'in_refund', 'in_receipt']:
-                product_account = product_account_expense if product_account_expense else \
-                    product_account_expense_category
-            else:
-                product_account = False
-
-            _logger.info(f"\nProduct Account: {product_account} \n-------------")
-
-            account = product_account if product_account else line.account_id
+            account = line.account_id
             account_name_to_check = account.name
             if account.substitute_account:
                 #     account_to_check = line.account_id.substitute_account.code
