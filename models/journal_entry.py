@@ -19,7 +19,7 @@ class AccountMove(models.Model):
     
     posted_to_remote = fields.Boolean("Posted to remote")
     failed_to_sync = fields.Boolean("Failed to Sync", default=False)
-    remote_move_id = fields.Char(string="Remote Move")
+    remote_move_id = fields.Integer(string="Remote Move")
 
 
 
