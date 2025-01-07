@@ -19,6 +19,8 @@ class AccountMove(models.Model):
     
     posted_to_remote = fields.Boolean("Posted to remote")
     failed_to_sync = fields.Boolean("Failed to Sync", default=False)
+    remote_move_id = fields.Many2one('account.move', string="Remote Move")
+
 
 
     # @api.model
