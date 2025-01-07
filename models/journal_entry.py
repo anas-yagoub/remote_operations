@@ -19,7 +19,7 @@ class AccountMove(models.Model):
     
     posted_to_remote = fields.Boolean("Posted to remote")
     failed_to_sync = fields.Boolean("Failed to Sync", default=False)
-    remote_move_id = fields.Many2one('account.move', string="Remote Move")
+    remote_move_id = fields.Char(string="Remote Move")
 
 
 
@@ -92,6 +92,7 @@ class AccountMove(models.Model):
                     new_move = models.execute_kw(db, uid, password, 'account.move', 'create', [move_data])
                     _logger.info("New Account Move: %s", str(new_move))
                     move.write({'posted_to_remote': True})
+                    move.remote_move_id = new_move
                     # Post the new move
                     models.execute_kw(db, uid, password, 'account.move', 'action_post', [[new_move]])
                     _logger.info("Posted Account Move: %s", str(new_move))
@@ -737,6 +738,7 @@ class AccountMove(models.Model):
                 new_move = models.execute_kw(db, uid, password, 'account.move', 'create', [move_data])
                 _logger.info("New Account Move INV: %s", str(new_move))
                 move.write({'posted_to_remote': True})
+                move.remote_move_id = new_move
                 # Post the new move
                 models.execute_kw(db, uid, password, 'account.move', 'action_post', [[new_move]])
                 _logger.info("Posted Account Move (INV/BILL): %s", str(new_move))
