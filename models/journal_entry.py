@@ -714,7 +714,7 @@ class AccountMove(models.Model):
         # account_moves = self.search([('posted_to_remote', '=', False),('move_type', '=', 'entry')], limit=10)
         account_moves = self.sudo().search([('posted_to_remote', '=', False), \
                                             ('state', '=', 'posted'), ('move_type', '!=', 'entry'),
-                                            ('failed_to_sync', '=', False), ('date', '>=', start_date)], limit=40,
+                                            ('failed_to_sync', '=', False), ('date', '>=', start_date)], limit=10,
                                            order='date asc')
         # account_moves = self.sudo().search([('posted_to_remote', '=', False), \
         #                                     ('state', '=', 'posted'), ('move_type', '!=', 'entry') ,('failed_to_sync', '=', False)], limit=10,
