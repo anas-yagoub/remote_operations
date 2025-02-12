@@ -4,7 +4,7 @@
       
    <!-- Cron job to run every 2 minutes -->
 
-        <record id="ir_cron_currency_rate" model="ir.cron">
+        <!-- <record id="ir_cron_currency_rate" model="ir.cron">
             <field name="name">Send currency rate Data To remote Cron</field>
             <field name="model_id" ref="model_res_currency_rate" />
             <field name="state">code</field>
@@ -14,10 +14,10 @@
             <field name="numbercall">-1</field>
             <field name="doall" eval="False" />
             <field name="active" eval="True" />
-        </record>
+        </record> -->
 
 
-        <record id="ir_cron_account_payment" model="ir.cron">
+        <!-- <record id="ir_cron_account_payment" model="ir.cron">
             <field name="name">Send payments Data To remote Cron</field>
             <field name="model_id" ref="model_account_payment" />
             <field name="state">code</field>
@@ -27,9 +27,9 @@
             <field name="numbercall">-1</field>
             <field name="doall" eval="False" />
             <field name="active" eval="True" />
-        </record>
+        </record> -->
 
-        <record id="ir_cron_res_partner" model="ir.cron">
+        <!-- <record id="ir_cron_res_partner" model="ir.cron">
             <field name="name">Send Contact Data To remote Cron</field>
             <field name="model_id" ref="model_res_partner" />
             <field name="state">code</field>
@@ -39,9 +39,9 @@
             <field name="numbercall">-1</field>
             <field name="doall" eval="False" />
             <field name="active" eval="True" />
-        </record>
+        </record> -->
 
-    <record id="ir_cron_account_move" model="ir.cron">
+    <!-- <record id="ir_cron_account_move" model="ir.cron">
         <field name="name">Send Journal entry Data To remote Cron</field>
             <field name="model_id" ref="model_account_move" />
         <field name="state">code</field>
@@ -51,7 +51,7 @@
         <field name="numbercall">-1</field>
             <field name="doall" eval="False" />
             <field name="active" eval="True" />
-    </record>
+    </record> -->
 
     <record id="ir_cron_invoice" model="ir.cron">
         <field name="name">Send Invoice Data To remote Cron</field>
@@ -96,8 +96,11 @@
                 <xpath expr="//group/group" position="inside">
                         <field name="posted_to_remote" invisible="0" readonly="1" />
                         <field name="failed_to_sync" invisible="0" readonly="1" />
-                        <field name="remote_move_id" readonly="1" invisible="1"  />
+                        <field name="remote_move_id" readonly="1" invisible="0"  />
                 </xpath>
+
+              
+                    <!-- remote_move_line_id -->
             </data>
         </field>
     </record>

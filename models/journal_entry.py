@@ -951,4 +951,225 @@ class AccountMove(models.Model):
     #     print(f"Mapped Account Code {account_code} to Remote Account ID {remote_account_id}")
     #     return remote_account_id
     
+    def button_draft(self):
+        result = super(AccountMove, self).button_draft()
+        for move in self:
+            move._reset_remote_record()
+        return result
     
+    def action_post(self):
+        super().action_post()
+        for move in self:
+            if move.move_type == 'entry':
+                move._update_remote_record()
+            else: 
+                move._update_invoice_remote_record()
+
+
+    def _reset_remote_record(self):
+        """Reset the corresponding record in the remote Odoo 18 database."""
+        self.ensure_one()
+        if not self.remote_move_id:
+            return  # No remote record to reset
+
+        config_parameters = self.env['ir.config_parameter'].sudo()
+        url = config_parameters.get_param('remote_operations.url')
+        db = config_parameters.get_param('remote_operations.db')
+        username = config_parameters.get_param('remote_operations.username')
+        password = config_parameters.get_param('remote_operations.password')
+
+        if not all([url, db, username, password]):
+            _logger.error("Remote server settings are incomplete.")
+            return
+
+        try:
+            # Connect to the remote Odoo database
+            common = xmlrpc.client.ServerProxy('{}/xmlrpc/2/common'.format(url), allow_none=True)
+            uid = common.authenticate(db, username, password, {})
+            models = xmlrpc.client.ServerProxy('{}/xmlrpc/2/object'.format(url), allow_none=True)
+
+            # Reset the state of the remote record to draft
+            _logger.info("Resetting remote record ID %s to draft.", self.remote_move_id)
+            models.execute_kw(
+                db, uid, password, 
+                'account.move', 
+                'write', 
+                [[self.remote_move_id], {'state': 'draft'}]
+            )
+            _logger.info("Successfully reset remote record ID %s to draft.", self.remote_move_id)
+
+        except Exception as e:
+            _logger.error("Error resetting remote record ID %s to draft: %s", self.remote_move_id, str(e))
+            
+      
+    
+    def _update_remote_record(self):
+        """Update the corresponding record in the remote Odoo 18 database."""
+        self.ensure_one()
+        if not self.remote_move_id:
+            return  # No remote record to update
+
+        # Fetch remote configuration parameters
+        config_parameters = self.env['ir.config_parameter'].sudo()
+        url = config_parameters.get_param('remote_operations.url')
+        db = config_parameters.get_param('remote_operations.db')
+        username = config_parameters.get_param('remote_operations.username')
+        password = config_parameters.get_param('remote_operations.password')
+
+        if not all([url, db, username, password]):
+            _logger.error("Remote server settings are incomplete.")
+            return
+
+        try:
+            # Connect to the remote Odoo database
+            common = xmlrpc.client.ServerProxy(f'{url}/xmlrpc/2/common', allow_none=True)
+            uid = common.authenticate(db, username, password, {})
+            models = xmlrpc.client.ServerProxy(f'{url}/xmlrpc/2/object', allow_none=True)
+
+            # Step 1: Delete existing line_ids in the remote record
+            remote_line_ids = models.execute_kw(
+                db, uid, password, 
+                'account.move.line', 
+                'search', 
+                [[('move_id', '=', self.remote_move_id)]]
+            )
+            if remote_line_ids:
+                models.execute_kw(
+                    db, uid, password, 
+                    'account.move.line', 
+                    'unlink', 
+                    [remote_line_ids]
+                )
+                _logger.info("Successfully deleted remote line_ids for remote record ID %s.", self.remote_move_id)
+
+            update_data = self._prepare_remote_update_data(models, db, uid, password, self, self.company_id.id)
+            _logger.info("Updating remote record ID %s with data: %s", self.remote_move_id, update_data)
+            # Step 3: Update the record in the remote database
+            models.execute_kw(
+                db, uid, password, 
+                'account.move', 
+                'write', 
+                [[self.remote_move_id], update_data]
+            )
+            _logger.info("Successfully updated remote record ID %s.", self.remote_move_id)
+            
+            # Post the updated move
+            models.execute_kw(db, uid, password, 'account.move', 'action_post', [[self.remote_move_id]])
+
+        except Exception as e:
+            _logger.error("Error updating remote record ID %s: %s", self.remote_move_id, str(e))
+            
+    def _prepare_remote_update_data(self, models, db, uid, password, move, company_id):
+        move_lines = []
+        for line in move.line_ids:
+            account_to_check = line.account_id.code
+            if line.account_id.substitute_account:
+                account_to_check = line.account_id.substitute_account.code
+    
+            account_id = self._map_account_to_remote_company(models, db, uid, password, company_id, account_to_check)
+
+            currency_id = self._get_remote_id_if_set(models, db, uid, password, 'res.currency', 'name', line.currency_id)
+            
+            remote_analytic_account_id = self._prepare_analytic_distribution(models, db, uid, password, line.analytic_account_id)
+
+            move_line_data = {
+                'account_id': account_id,
+                'name': line.name,
+                'debit': line.debit,
+                'credit': line.credit,
+                'partner_id': self._get_remote_id_if_set(models, db, uid, password, 'res.partner', 'name', line.partner_id) or None,
+                'currency_id': currency_id,
+                'amount_currency': line.amount_currency,
+                'analytic_distribution': {str(remote_analytic_account_id): 100} if remote_analytic_account_id else {} or None,
+            }
+
+            move_lines.append((0, 0, move_line_data))
+            
+        move_data = {
+            'patient': move.patient_id.name or None,
+            'company_id': self._map_branch_to_remote_company(models, db, uid, password, move.branch_id, move.company_id) or None,
+            'ref': move.ref or None,
+            'date': move.date or None,
+            'move_type': move.move_type or None,
+            'currency_id': currency_id or None,
+            'journal_id': self._map_journal_to_remote_company(models, db, uid, password, move.journal_id) or None,
+            'line_ids': move_lines,
+        }
+        
+        return move_data
+    
+    
+
+
+    def _update_invoice_remote_record(self):
+        """Update the corresponding record in the remote Odoo 18 database."""
+        self.ensure_one()
+        if not self.remote_move_id:
+            return  # No remote record to update
+
+        # Fetch remote configuration parameters
+        config_parameters = self.env['ir.config_parameter'].sudo()
+        url = config_parameters.get_param('remote_operations.url')
+        db = config_parameters.get_param('remote_operations.db')
+        username = config_parameters.get_param('remote_operations.username')
+        password = config_parameters.get_param('remote_operations.password')
+
+        if not all([url, db, username, password]):
+            _logger.error("Remote server settings are incomplete.")
+            return
+
+        try:
+            # Connect to the remote Odoo database
+            common = xmlrpc.client.ServerProxy(f'{url}/xmlrpc/2/common', allow_none=True)
+            uid = common.authenticate(db, username, password, {})
+            models = xmlrpc.client.ServerProxy(f'{url}/xmlrpc/2/object', allow_none=True)
+
+            # Step 1: Fetch the account.move record to get invoice_line_ids
+            remote_move = models.execute_kw(
+                db, uid, password,
+                'account.move',
+                'search_read',
+                [[('id', '=', self.remote_move_id)]],  # Searching for the specific move_id
+                {'fields': ['invoice_line_ids']}  # Only fetch invoice_line_ids field
+            )
+
+            if remote_move:
+                remote_invoice_line_ids = remote_move[0].get('invoice_line_ids', [])
+                _logger.info("Fetched remote invoice_line_ids for remote record ID %s: %s", self.remote_move_id, remote_invoice_line_ids)
+
+                # Step 2: If invoice_line_ids exist, unlink them
+                if remote_invoice_line_ids:
+                    models.execute_kw(
+                        db, uid, password,
+                        'account.move.line',
+                        'unlink',
+                        [remote_invoice_line_ids]  # Unlink the invoice lines
+                    )
+                    _logger.info("Successfully unlinked remote invoice_line_ids for remote record ID %s.", self.remote_move_id)
+
+                # Step 3: Prepare the updated data for the invoice
+                update_data = self._prepare_invoice_data(models, db, uid, password, self, self.company_id.id)
+                _logger.info("Updating remote record ID %s with data: %s", self.remote_move_id, update_data)
+
+                # Step 4: Update the record in the remote database
+                models.execute_kw(
+                    db, uid, password,
+                    'account.move',
+                    'write',
+                    [[self.remote_move_id], update_data]
+                )
+                models.execute_kw(db, uid, password, 'account.move', 'action_post', [[self.remote_move_id]])
+
+                _logger.info("Successfully updated remote record ID %s.", self.remote_move_id)
+
+            else:
+                _logger.error("No account.move found for remote record ID %s", self.remote_move_id)
+
+        except Exception as e:
+            _logger.error("Error updating remote record ID %s: %s", self.remote_move_id, str(e))
+
+
+
+
+                    
+                
