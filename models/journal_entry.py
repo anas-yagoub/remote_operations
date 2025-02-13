@@ -118,7 +118,8 @@ class AccountMove(models.Model):
 
             currency_id = self._get_remote_id_if_set(models, db, uid, password, 'res.currency', 'name', line.currency_id)
             
-            remote_analytic_account_id = self._prepare_analytic_distribution(models, db, uid, password, line.analytic_account_id)
+            remote_analytic_account_id = self._prepare_analytic_distribution(models, db, uid, password, line.analytic_account_id,
+                                                                             company_id)
 
             move_line_data = {
                 'account_id': account_id,
@@ -161,24 +162,24 @@ class AccountMove(models.Model):
         
     #     return remote_analytic_account_id
     
-    def _prepare_analytic_distribution(self, models, db, uid, password, local_analytic_account_id):
+    def _prepare_analytic_distribution(self, models, db, uid, password, local_analytic_account, company_id=1):
         remote_analytic_account_id = None
 
-        if local_analytic_account_id:
-            # Fetch the local analytic account record
-            local_analytic_account = self.env['account.analytic.account'].browse(local_analytic_account_id.id)
-            
+        if local_analytic_account:
+            domain = [
+                ('name', '=', local_analytic_account.name),
+                '|',
+                ('company_id', '=', company_id),
+                ('company_id', '=', False),
+                ('active', '=', True)
+            ]
+
             # Map the local analytic account to the remote analytic account by name and company
-            remote_analytic_account_id = self._get_remote_id(
-                models, db, uid, password,
-                'account.analytic.account', 
-                domain=[
-                    ('name', '=', local_analytic_account.name),
-                    ('company_id', '=', local_analytic_account.company_id.id)
-                ]
-            )
-        
-        return remote_analytic_account_id
+            remote_analytic_account_id = models.execute_kw(
+                db, uid, password, 'account.analytic.account', 'search',
+                [domain])[0]
+
+            return remote_analytic_account_id
 
     
     
@@ -618,7 +619,7 @@ class AccountMove(models.Model):
                 account_id = self._map_account_name_to_remote_company(models, db, uid, password, company_id,
                                                                       account_name_to_check)
                 remote_analytic_account_id = self._prepare_analytic_distribution(models, db, uid, password,
-                                                                                 line.analytic_account_id)
+                                                                                 line.analytic_account_id, company_id)
                 tax_ids = [
                     self._get_remote_tax_id(
                         models, db, uid, password,
@@ -828,7 +829,8 @@ class AccountMove(models.Model):
 
             currency_id = self._get_remote_id_if_set(models, db, uid, password, 'res.currency', 'name', line.currency_id)
             
-            remote_analytic_account_id = self._prepare_analytic_distribution(models, db, uid, password, line.analytic_account_id)
+            remote_analytic_account_id = self._prepare_analytic_distribution(models, db, uid, password, \
+                                                                             line.analytic_account_id, company_id)
 
             move_line_data = {
                 'account_id': account_id,
