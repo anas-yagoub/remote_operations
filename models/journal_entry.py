@@ -431,25 +431,11 @@ class AccountMove(models.Model):
             return models.execute_kw(db, uid, password, 'res.partner', 'create', [partner_data])
             # return partner_data
 
-    # @api.model
-    # def action_send_invoice_to_remote_cron(self):
-    #     try:
-    #         _logger.info("-----\nPreparing to create invoice(s)\n-----")
-    #         self.send_invoice_to_remote()
-    #         # Commit the transaction after successfully processing the record
-    #         self.env.cr.commit()
-    #     except Exception as e:
-    #         # Log the error
-    #         _logger.error("Error processing record ID %s: %s", self.id, str(e))
-    #         # Rollback any partial changes and mark the record as failed
-    #         # self.env.cr.rollback()
-    #         # self.write({'failed_to_sync': True})  # Mark record as failed to prevent retries
-
     @api.model
     def action_send_invoice_to_remote_cron(self):
         # Get configuration parameters
         config_parameters = self.env['ir.config_parameter'].sudo()
-
+        
         remote_type = config_parameters.get_param('remote_operations.remote_type')
         if remote_type != 'Branch Database':
             _logger.info("Database is not configured as 'Branch Database'. Skipping sending account moves to remote.")
@@ -459,60 +445,134 @@ class AccountMove(models.Model):
         db = config_parameters.get_param('remote_operations.db')
         username = config_parameters.get_param('remote_operations.username')
         password = config_parameters.get_param('remote_operations.password')
-
+        
         # Validate settings
         if not all([url, db, username, password]):
             raise ValidationError("Remote server settings must be fully configured (URL, DB, Username, Password)")
+        
+        try:
+            # Create XML-RPC connection
+            common = xmlrpc.client.ServerProxy('{}/xmlrpc/2/common'.format(url), allow_none=True)
+            uid = common.authenticate(db, username, password, {})
+            models = xmlrpc.client.ServerProxy('{}/xmlrpc/2/object'.format(url), allow_none=True)
+            
+            start_date = date(2024, 7, 1).isoformat()
+            account_moves = self.sudo().search([
+                ('posted_to_remote', '=', False), 
+                ('state', '=', 'posted'),
+                ('move_type', '!=', 'entry'),
+                ('failed_to_sync', '=', False),
+                ('date', '>=', start_date)
+            ], limit=10, order='date asc')
+            
+            _logger.info(f"Account Moves to Process: {account_moves.read(['name', 'posted_to_remote'])}")
+            
+            for move in account_moves:
+                try:
+                    # Skip moves linked to journals marked as "don't synchronize"
+                    if move.journal_id.dont_synchronize:
+                        continue
+                    
+                    # Prepare and send data to the remote server
+                    company_id = self._get_remote_id(models, db, uid, password, 'res.company', 'name', move.journal_id.company_id.name)
+                    _logger.info(f"Processing Move: {move.read(['name', 'company_id', 'partner_id'])}")
+                    
+                    move_data = self._prepare_invoice_data(models, db, uid, password, move, move.company_id.id)
+                    _logger.info("Prepared Move Data: %s", str(move_data))
+                    
+                    new_move = models.execute_kw(db, uid, password, 'account.move', 'create', [move_data])
+                    _logger.info("Created Remote Move: %s", str(new_move))
+                    
+                    # Post the move remotely
+                    models.execute_kw(db, uid, password, 'account.move', 'action_post', [[new_move]])
+                    _logger.info("Posted Remote Move: %s", str(new_move))
+                    # Mark move as posted to remote
+                    move.write({'posted_to_remote': True, 'remote_move_id': new_move})
+                except Exception as inner_e:
+                    # Log and mark move as failed
+                    move.write({'failed_to_sync': True})
+                    _logger.error("Error Processing Move ID %s: %s", move.id, str(inner_e))
+            
+            # Log summary of the process
+            successful_moves = account_moves.filtered(lambda m: m.posted_to_remote)
+            failed_moves = account_moves.filtered(lambda m: not m.posted_to_remote)
+            
+            _logger.info(f"Successfully Processed Moves: {len(successful_moves)}")
+            _logger.info(f"Failed to Process Moves: {len(failed_moves)}")
+        
+        except Exception as outer_e:
+            # Catch errors at the overall level
+            _logger.error("Error While Sending Account Moves to Remote Server: %s", str(outer_e))
+            raise ValidationError("Error while sending account move data to remote server: {}".format(outer_e))
 
-        # Create XML-RPC connection and send data
-        common = xmlrpc.client.ServerProxy('{}/xmlrpc/2/common'.format(url), allow_none=True)
-        uid = common.authenticate(db, username, password, {})
-        models = xmlrpc.client.ServerProxy('{}/xmlrpc/2/object'.format(url), allow_none=True)
+    # @api.model
+    # def action_send_invoice_to_remote_cron(self):
+    #     # Get configuration parameters
+    #     config_parameters = self.env['ir.config_parameter'].sudo()
 
-        start_date = date(2024,7,1).isoformat()
-        # account_moves = self.search([('posted_to_remote', '=', False),('move_type', '=', 'entry')], limit=10)
-        account_moves = self.sudo().search([('posted_to_remote', '=', False), \
-                                            ('state', '=', 'posted'), ('move_type', '!=', 'entry'),
-                                            ('failed_to_sync', '=', False), ('date', '>=', start_date)], limit=10,
-                                           order='date asc')
-        # account_moves = self.sudo().search([('posted_to_remote', '=', False), \
-        #                                     ('state', '=', 'posted'), ('move_type', '!=', 'entry') ,('failed_to_sync', '=', False)], limit=10,
-        #                                   )
-        _logger.info(f"Account Data Moves to process......................\n {account_moves.read(['name', 'posted_to_remote'])}")
+    #     remote_type = config_parameters.get_param('remote_operations.remote_type')
+    #     if remote_type != 'Branch Database':
+    #         _logger.info("Database is not configured as 'Branch Database'. Skipping sending account moves to remote.")
+    #         return
+        
+    #     url = config_parameters.get_param('remote_operations.url')
+    #     db = config_parameters.get_param('remote_operations.db')
+    #     username = config_parameters.get_param('remote_operations.username')
+    #     password = config_parameters.get_param('remote_operations.password')
 
-        for move in account_moves:
-            try:
-                if move.journal_id.dont_synchronize:
-                    continue
+    #     # Validate settings
+    #     if not all([url, db, username, password]):
+    #         raise ValidationError("Remote server settings must be fully configured (URL, DB, Username, Password)")
 
-                # TODO this skip non-created branches in remote
-                # if move.branch_id.not_in_remote:
-                #     continue
+    #     # Create XML-RPC connection and send data
+    #     common = xmlrpc.client.ServerProxy('{}/xmlrpc/2/common'.format(url), allow_none=True)
+    #     uid = common.authenticate(db, username, password, {})
+    #     models = xmlrpc.client.ServerProxy('{}/xmlrpc/2/object'.format(url), allow_none=True)
 
-                company_id = self._get_remote_id(models, db, uid, password, 'res.company', 'name',
-                                                 move.journal_id.company_id.name)
-                _logger.info(f"\nProcessing move id {move.read(['name', 'company_id', 'partner_id'])}\n")
-                move_data = self._prepare_invoice_data(models, db, uid, password, move, move.company_id.id)
-                _logger.info("Account Move Invoice Data: %s", str(move_data))
-                new_move = models.execute_kw(db, uid, password, 'account.move', 'create', [move_data])
-                _logger.info("New Account Move INV: %s", str(new_move))
-                move.write({'posted_to_remote': True})
-                move.remote_move_id = new_move
-                # Post the new move
-                models.execute_kw(db, uid, password, 'account.move', 'action_post', [[new_move]])
-                _logger.info("Posted Account Move (INV/BILL): %s", str(new_move))
-                move.write({'posted_to_remote': True})
-            except Exception as e:
-                # Log the error
-                move.write({'failed_to_sync': True})
-                _logger.error("Error processing record ID %s: %s", move.id, str(e))
+    #     start_date = date(2024,7,1).isoformat()
+    #     # account_moves = self.search([('posted_to_remote', '=', False),('move_type', '=', 'entry')], limit=10)
+    #     account_moves = self.sudo().search([('posted_to_remote', '=', False), \
+    #                                         ('state', '=', 'posted'), ('move_type', '!=', 'entry'),
+    #                                         ('failed_to_sync', '=', False), ('date', '>=', start_date)], limit=10,
+    #                                        order='date asc')
+    #     # account_moves = self.sudo().search([('posted_to_remote', '=', False), \
+    #     #                                     ('state', '=', 'posted'), ('move_type', '!=', 'entry') ,('failed_to_sync', '=', False)], limit=10,
+    #     #                                   )
+    #     _logger.info(f"Account Data Moves to process......................\n {account_moves.read(['name', 'posted_to_remote'])}")
 
-        _logger.info(
-            f"Account Data Moves (Done) to process.......... {account_moves.sudo().read(['name', 'posted_to_remote'])}")
-        _logger.info(
-            f"Account Data Moves (Done) Successful to process....... {len(account_moves.filtered(lambda x: x.posted_to_remote))}")
-        _logger.info(
-            f"Account Data Moves (Done) Failed to process..........{len(account_moves.filtered(lambda x: not x.posted_to_remote))}")
+    #     for move in account_moves:
+    #         try:
+    #             if move.journal_id.dont_synchronize:
+    #                 continue
+
+    #             # TODO this skip non-created branches in remote
+    #             # if move.branch_id.not_in_remote:
+    #             #     continue
+
+    #             company_id = self._get_remote_id(models, db, uid, password, 'res.company', 'name',
+    #                                              move.journal_id.company_id.name)
+    #             _logger.info(f"\nProcessing move id {move.read(['name', 'company_id', 'partner_id'])}\n")
+    #             move_data = self._prepare_invoice_data(models, db, uid, password, move, move.company_id.id)
+    #             _logger.info("Account Move Invoice Data: %s", str(move_data))
+    #             new_move = models.execute_kw(db, uid, password, 'account.move', 'create', [move_data])
+    #             _logger.info("New Account Move INV: %s", str(new_move))
+    #             move.write({'posted_to_remote': True})
+    #             move.remote_move_id = new_move
+    #             # Post the new move
+    #             models.execute_kw(db, uid, password, 'account.move', 'action_post', [[new_move]])
+    #             _logger.info("Posted Account Move (INV/BILL): %s", str(new_move))
+    #             move.write({'posted_to_remote': True})
+    #         except Exception as e:
+    #             # Log the error
+    #             move.write({'failed_to_sync': True})
+    #             _logger.error("Error processing record ID %s: %s", move.id, str(e))
+
+    #     _logger.info(
+    #         f"Account Data Moves (Done) to process.......... {account_moves.sudo().read(['name', 'posted_to_remote'])}")
+    #     _logger.info(
+    #         f"Account Data Moves (Done) Successful to process....... {len(account_moves.filtered(lambda x: x.posted_to_remote))}")
+    #     _logger.info(
+    #         f"Account Data Moves (Done) Failed to process..........{len(account_moves.filtered(lambda x: not x.posted_to_remote))}")
 
         #     # Now reconcile payments with the new remote invoice
         #     # payments = self.env['account.payment'].search([])  # Fetch payments related to the invoice
