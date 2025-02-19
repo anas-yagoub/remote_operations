@@ -97,6 +97,7 @@
                         <field name="posted_to_remote" invisible="0" readonly="1" />
                         <field name="failed_to_sync" invisible="0" readonly="1" />
                         <field name="remote_move_id" readonly="1" invisible="0"  />
+
                 </xpath>
 
               
@@ -112,8 +113,9 @@
         <field name="arch" type="xml">
             <data>
                 <xpath expr="//group/group" position="inside">
-                    <field name="payment_posted_to_remote" invisible="0" readonly="1" />
+                        <field name="payment_posted_to_remote" invisible="0" readonly="1" />
                         <!-- <field name="failed_to_sync" readonly="1" /> -->
+                        <field name="remote_id" readonly="1" />
                 </xpath>
             </data>
         </field>

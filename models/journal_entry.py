@@ -694,9 +694,9 @@ class AccountMove(models.Model):
 
             move_line_data = {
                 'product_id': self._get_remote_id_if_set(models, db, uid, password, 'product.product', 'name',
-                                    line.product_id) or '',
+                                    line.product_id) or line.name,
                 'account_id': account_id,
-                'name': line.name,
+                # 'name': line.name,
                 'analytic_distribution': {
                     str(remote_analytic_account_id): 100} if remote_analytic_account_id else {} or None,
                 'quantity': line.quantity or None,
