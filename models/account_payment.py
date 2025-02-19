@@ -68,7 +68,7 @@ class AccountPayment(models.Model):
                     payment_data = payment._prepare_payment_data(models, db, uid, password)
                     _logger.info("Payment Data: %s", payment_data)
                     new_payment_id = models.execute_kw(db, uid, password, 'account.payment', 'create', [payment_data])
-                    payment.write({'payment_posted_to_remote': True})
+                    payment.write({'payment_posted_to_remote': True, 'remote_id': new_payment_id})
                     models.execute_kw(db, uid, password, 'account.payment', 'action_post', [[new_payment_id]])
                     _logger.info("Payment Has been created *********************: %s", new_payment_id)
 
