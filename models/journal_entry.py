@@ -693,6 +693,8 @@ class AccountMove(models.Model):
                 tax_ids = []
 
             move_line_data = {
+                'product_id': self._get_remote_id_if_set(models, db, uid, password, 'product.product', 'name',
+                                    line.product_id) or '',
                 'account_id': account_id,
                 'name': line.name,
                 'analytic_distribution': {
