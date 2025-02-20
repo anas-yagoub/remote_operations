@@ -65,16 +65,21 @@ class AccountPayment(models.Model):
 
             for payment in payments:
                 try:
+                    move_id = payment.move_id
                     payment_data = payment._prepare_payment_data(models, db, uid, password)
                     _logger.info("Payment Data: %s", payment_data)
                     new_payment_id = models.execute_kw(db, uid, password, 'account.payment', 'create', [payment_data])
                     payment.write({'payment_posted_to_remote': True, 'remote_id': new_payment_id})
+                    if payment.move_id:
+                        payment.move_id.write({'posted_to_remote': True})  
                     models.execute_kw(db, uid, password, 'account.payment', 'action_post', [[new_payment_id]])
                     _logger.info("Payment Has been created *********************: %s", new_payment_id)
 
                 except Exception as e:
                     # payment.write({'failed_to_sync': True})
                     _logger.error("Error processing payment ID %s: %s", payment.id, str(e))
+                    payment.message_post(body="Error processing payment ID {}: {}".format(payment.id, str(e)))
+
 
         except Exception as e:
             raise ValidationError("Error while sending payment data to remote server: {}".format(e))
