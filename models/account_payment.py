@@ -60,8 +60,11 @@ class AccountPayment(models.Model):
                 # ('failed_to_sync', '=', False),
                 ('is_internal_transfer', '=', False),
                 ('date', '>=', start_date),
-                ('state', '=', 'posted')
+                ('state', '=', 'posted'),
+                ('remote_id', '=', False)
             ], limit=10, order='date asc')
+            
+            print("********************************************payments", payments)
 
             for payment in payments:
                 try:
@@ -106,6 +109,9 @@ class AccountPayment(models.Model):
         }
         return payment_data
     
+    
+    
+    
     def _map_branch_to_remote_company(self, models, db, uid, password, branch_id=None, company_id=None):
         """
         Map the branch or company to a remote company.
@@ -130,6 +136,7 @@ class AccountPayment(models.Model):
         )
 
         return remote_company_id
+    
     
     def _get_remote_journal_id(self, models, db, uid, password, model_name, domain=None):
         # If a domain is provided, use it to search
@@ -157,6 +164,8 @@ class AccountPayment(models.Model):
             )
 
         return remote_journal_id
+    
+    
     
     def _get_remote_id(self, models, db, uid, password, model, field_name, field_value):
         remote_record = models.execute_kw(

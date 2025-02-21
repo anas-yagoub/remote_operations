@@ -102,6 +102,8 @@ class AccountMove(models.Model):
                 except Exception as e:
                     move.write({'failed_to_sync': True})  # Mark record as failed to prevent retries
                     _logger.error("Error processing Account Move inside ID %s: %s", move.id, str(e))
+                    move.message_post(body="Error processing Move ID {}: {}".format(move.id, str(e)))
+
                     # self.env.cr.rollback()
 
         except Exception as e:
@@ -492,6 +494,8 @@ class AccountMove(models.Model):
                     # Log and mark move as failed
                     move.write({'failed_to_sync': True})
                     _logger.error("Error Processing Move ID %s: %s", move.id, str(inner_e))
+                    move.message_post(body="Error processing Move ID {}: {}".format(move.id, str(inner_e)))
+
             
             # Log summary of the process
             successful_moves = account_moves.filtered(lambda m: m.posted_to_remote)
@@ -881,6 +885,9 @@ class AccountMove(models.Model):
 
         except Exception as e:
             _logger.error("Error updating remote record ID %s: %s", self.remote_move_id, str(e))
+            self.message_post(body="Error processing Move ID {}: {}".format( self.remote_move_id.id, str(e)))
+
+            
             
     def _prepare_remote_update_data(self, models, db, uid, password, move, company_id):
         move_lines = []
@@ -988,9 +995,14 @@ class AccountMove(models.Model):
 
             else:
                 _logger.error("No account.move found for remote record ID %s", self.remote_move_id)
+                
 
         except Exception as e:
             _logger.error("Error updating remote record ID %s: %s", self.remote_move_id, str(e))
+            self.message_post(body="Error processing Move ID {}: {}".format( self.remote_move_id.id, str(e)))
+
+                
+            
 
 
 
