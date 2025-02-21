@@ -61,7 +61,7 @@ class AccountPayment(models.Model):
                 ('is_internal_transfer', '=', False),
                 ('date', '>=', start_date),
                 ('state', '=', 'posted'),
-                ('remote_id', '=', False)
+                ('remote_id', '=', 0)
             ], limit=10, order='date asc')
             
             print("********************************************payments", payments)

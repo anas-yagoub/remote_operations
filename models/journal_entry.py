@@ -112,11 +112,16 @@ class AccountMove(models.Model):
     def _prepare_move_data(self, models, db, uid, password, move, company_id):
         move_lines = []
         for line in move.line_ids:
-            account_to_check = line.account_id.code
+            account_code = line.account_id.code
+            account_name_to_check = line.account_id.name
             if line.account_id.substitute_account:
-                account_to_check = line.account_id.substitute_account.code
-    
-            account_id = self._map_account_to_remote_company(models, db, uid, password, company_id, account_to_check)
+                account_code = line.account_id.substitute_account.name
+                account_name_to_check = line.account_id.substitute_account.name
+
+            # account_id = self._map_account_to_remote_company(models, db, uid, password, company_id, account_code)
+
+            account_id = self._map_account_name_to_remote_company(models, db, uid, password, company_id,
+                                                                      account_name_to_check)
 
             currency_id = self._get_remote_id_if_set(models, db, uid, password, 'res.currency', 'name', line.currency_id)
             
