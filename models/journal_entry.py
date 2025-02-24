@@ -749,6 +749,7 @@ class AccountMove(models.Model):
                 'payment_reference': move.payment_reference or None,
                 'ref': move.ref or None,
                 'invoice_date': move.invoice_date or None,
+                'date': move.date or None,
                 'invoice_date_due': move.invoice_date_due or None,
                 'invoice_origin': move.invoice_origin or None,
                 'narration': move.narration or None,
