@@ -16,7 +16,7 @@ class AccountPayment(models.Model):
 
     payment_posted_to_remote = fields.Boolean("Payment Posted to remote")
     failed_to_sync = fields.Boolean("Failed To Sync")
-    remote_id = fields.Integer(string="Remote Id")
+    remote_id = fields.Integer(string="Remote Id", copy=False)
 
 
 
