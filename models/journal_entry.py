@@ -891,7 +891,7 @@ class AccountMove(models.Model):
 
         except Exception as e:
             _logger.error("Error updating remote record ID %s: %s", self.remote_move_id, str(e))
-            self.message_post(body="Error processing Move ID {}: {}".format( self.remote_move_id.id, str(e)))
+            self.message_post(body="Error processing Move ID {}: {}".format( self.remote_move_id, str(e)))
 
             
             
@@ -1005,7 +1005,8 @@ class AccountMove(models.Model):
 
         except Exception as e:
             _logger.error("Error updating remote record ID %s: %s", self.remote_move_id, str(e))
-            self.message_post(body="Error processing Move ID {}: {}".format( self.remote_move_id.id, str(e)))
+            self.message_post(body="Error processing Move ID {}: {}".format(self.remote_move_id, str(e)))
+
 
                 
             
