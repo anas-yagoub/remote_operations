@@ -17,7 +17,7 @@ class AccountMove(models.Model):
     
     _inherit = 'account.move'
     
-    posted_to_remote = fields.Boolean("Posted to remote")
+    posted_to_remote = fields.Boolean("Posted to remote", copy=False)
     failed_to_sync = fields.Boolean("Failed to Sync", default=False)
     remote_move_id = fields.Integer(string="Remote Move", copy=False)
     

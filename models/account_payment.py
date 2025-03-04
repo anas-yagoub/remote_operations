@@ -14,8 +14,8 @@ _logger = logging.getLogger(__name__)
 class AccountPayment(models.Model):
     _inherit = 'account.payment'
 
-    payment_posted_to_remote = fields.Boolean("Payment Posted to remote")
-    failed_to_sync = fields.Boolean("Failed To Sync")
+    payment_posted_to_remote = fields.Boolean("Payment Posted to remote", copy=False)
+    failed_to_sync = fields.Boolean("Failed To Sync", copy=False)
     remote_id = fields.Integer(string="Remote Id", copy=False)
 
 
