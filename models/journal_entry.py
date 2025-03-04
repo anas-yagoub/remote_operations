@@ -52,10 +52,10 @@ class AccountMove(models.Model):
                 
                 # Convert move.date to a proper date object
                 move_date = fields.Date.to_date(move.date)
-                if move_date < start_date:
-                    continue
-                if move.posted_to_remote:
-                    continue
+                # if move_date < start_date:
+                #     continue
+                # if move.posted_to_remote:
+                #     continue
                 
                 for line in move.line_ids:
                     if line.partner_id:
