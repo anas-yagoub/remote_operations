@@ -51,7 +51,7 @@ class AccountMove(models.Model):
                     continue
                 
                 # Convert move.date to a proper date object
-                move_date = fields.Date.to_date(move.date)
+                # move_date = fields.Date.to_date(move.date)
                 # if move_date < start_date:
                 #     continue
                 # if move.posted_to_remote:
