@@ -21,13 +21,14 @@ class AccountMove(models.Model):
     failed_to_sync = fields.Boolean("Failed to Sync", default=False)
     remote_move_id = fields.Integer(string="Remote Move", copy=False)
     
+    
     def action_sync_to_remote_manual(self):
-        """ Syncs account moves to a remote Odoo server """
+        """ Manually sync selected account moves to a remote Odoo server """
         config_parameters = self.env['ir.config_parameter'].sudo()
 
         remote_type = config_parameters.get_param('remote_operations.remote_type')
         if remote_type != 'Branch Database':
-            return
+            raise UserError(_("This database is not configured as 'Branch Database'. Sync is not required."))
 
         url = config_parameters.get_param('remote_operations.url')
         db = config_parameters.get_param('remote_operations.db')
@@ -38,118 +39,61 @@ class AccountMove(models.Model):
             raise UserError(_("Remote server settings must be fully configured (URL, DB, Username, Password)"))
 
         try:
-            common = xmlrpc.client.ServerProxy(url + '/xmlrpc/2/common', allow_none=True)
+            common = xmlrpc.client.ServerProxy(f'{url}/xmlrpc/2/common', allow_none=True)
             uid = common.authenticate(db, username, password, {})
             if not uid:
-                raise UserError(_("Authentication failed with remote server"))
+                raise UserError(_("Authentication failed with remote server."))
 
-            models = xmlrpc.client.ServerProxy(url + '/xmlrpc/2/object', allow_none=True)
-            start_date = datetime.date(2024, 7, 1)
+            models = xmlrpc.client.ServerProxy(f'{url}/xmlrpc/2/object', allow_none=True)
+            start_date = fields.Date.to_date('2024-07-01')
 
             for move in self:
-                if move.journal_id.dont_synchronize:
-                    continue
-                
-                # Convert move.date to a proper date object
-                # move_date = fields.Date.to_date(move.date)
-                # if move_date < start_date:
-                #     continue
-                # if move.posted_to_remote:
-                #     continue
-                
-                for line in move.line_ids:
-                    if line.partner_id:
-                        remote_partner_id = move._get_remote_id_if_set(
-                            models, db, uid, password, 'res.partner', 'name', line.partner_id
-                        )
-                        if not remote_partner_id:
-                            remote_partner_id = move._create_remote_partner(
-                                models, db, uid, password, line.partner_id
+                try:
+                    if move.posted_to_remote or move.failed_to_sync:
+                        continue  # Skip already processed records
+
+                    if move.journal_id.dont_synchronize:
+                        continue  # Skip journals marked not to sync
+
+                    if move.date < start_date:
+                        continue  # Skip moves before the sync date
+
+                    # Ensure partners exist remotely
+                    for line in move.line_ids:
+                        if line.partner_id:
+                            remote_partner_id = move._get_remote_id_if_set(
+                                models, db, uid, password, 'res.partner', 'name', line.partner_id
                             )
-                
-                move_data = move._prepare_move_data(models, db, uid, password, move, move.company_id.id)
-                new_move_id = models.execute_kw(db, uid, password, 'account.move', 'create', [move_data])
-                
-                models.execute_kw(db, uid, password, 'account.move', 'action_post', [[new_move_id]])
-                
-                move.write({
-                    'posted_to_remote': True,
-                    'remote_move_id': new_move_id,
-                    'failed_to_sync': False
-                })
-                self.env.cr.commit()
+                            if not remote_partner_id:
+                                remote_partner_id = move._create_remote_partner(
+                                    models, db, uid, password, line.partner_id
+                                )
+
+                    move_data = move._prepare_move_data(models, db, uid, password, move, move.company_id.id)
+                    new_move_id = models.execute_kw(db, uid, password, 'account.move', 'create', [move_data])
+
+                    models.execute_kw(db, uid, password, 'account.move', 'action_post', [[new_move_id]])
+
+                    move.write({
+                        'posted_to_remote': True,
+                        'remote_move_id': new_move_id,
+                        'failed_to_sync': False
+                    })
+                    self.env.cr.commit()
+
+                    _logger.info(f"Successfully synced Move ID {move.id} to remote server with ID {new_move_id}")
+
+                except Exception as move_error:
+                    move.write({'failed_to_sync': True})
+                    move.message_post(body=f"Error syncing Move ID {move.id}: {str(move_error)}")
+                    _logger.error(f"Error syncing Move ID {move.id}: {str(move_error)}")
+                    self.env.cr.rollback()
 
         except Exception as e:
-            self.env.cr.rollback()
-            for move in self:
-                error_msg = f"Error processing Move ID {move.id}: {str(e)}"
-                move.write({'failed_to_sync': True})
-                move.message_post(body=error_msg)
-                _logger.error(error_msg)
+            _logger.error(f"Critical error in remote sync: {str(e)}")
+            raise UserError(_("Error while sending account move data to remote server: ") + str(e))
 
 
-    # def action_sync_to_remote_manual(self):
-    #     """ Syncs account moves to a remote Odoo server """
-    #     config_parameters = self.env['ir.config_parameter'].sudo()
-
-    #     remote_type = config_parameters.get_param('remote_operations.remote_type')
-    #     if remote_type != 'Branch Database':
-    #         return
-
-    #     url = config_parameters.get_param('remote_operations.url')
-    #     db = config_parameters.get_param('remote_operations.db')
-    #     username = config_parameters.get_param('remote_operations.username')
-    #     password = config_parameters.get_param('remote_operations.password')
-
-    #     if not all([url, db, username, password]):
-    #         raise UserError(_("Remote server settings must be fully configured (URL, DB, Username, Password)"))
-
-    #     try:
-    #         common = xmlrpc.client.ServerProxy(url + '/xmlrpc/2/common', allow_none=True)
-    #         uid = common.authenticate(db, username, password, {})
-    #         if not uid:
-    #             raise UserError(_("Authentication failed with remote server"))
-
-    #         models = xmlrpc.client.ServerProxy(url + '/xmlrpc/2/object', allow_none=True)
-    #         start_date = datetime.date(2024, 7, 1)
-
-    #         for move in self:
-    #             if move.journal_id.dont_synchronize:
-    #                 continue
-    #             if move.date < start_date:
-    #                 continue
-    #             if move.posted_to_remote:
-    #                 continue
-                
-    #             for line in move.line_ids:
-    #                 if line.partner_id:
-    #                     remote_partner_id = move._get_remote_id_if_set(
-    #                         models, db, uid, password, 'res.partner', 'name', line.partner_id
-    #                     )
-    #                     if not remote_partner_id:
-    #                         remote_partner_id = move._create_remote_partner(
-    #                             models, db, uid, password, line.partner_id
-    #                         )
-                
-    #             move_data = move._prepare_move_data(models, db, uid, password, move, move.company_id.id)
-    #             new_move_id = models.execute_kw(db, uid, password, 'account.move', 'create', [move_data])
-                
-    #             models.execute_kw(db, uid, password, 'account.move', 'action_post', [[new_move_id]])
-                
-    #             move.write({
-    #                 'posted_to_remote': True,
-    #                 'remote_move_id': new_move_id,
-    #                 'failed_to_sync': False
-    #             })
-    #             self.env.cr.commit()
-
-    #     except Exception as e:
-    #         self.env.cr.rollback()
-    #         for move in self:
-    #             error_msg = f"Error processing Move ID {move.id}: {str(e)}"
-    #             move.write({'failed_to_sync': True})
-    #             move.message_post(body=error_msg)
-    #             _logger.error(error_msg)
        
     @api.model
     def send_account_moves_to_remote(self):
@@ -338,7 +282,7 @@ class AccountMove(models.Model):
     def _get_remote_journal_id(self, models, db, uid, password, model_name, domain=None):
         # If a domain is provided, use it to search
         if domain:
-            print(f"domain>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>{domain}")
+            print(f"Journal domain>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>{domain}")
             remote_model = models.execute_kw(db, uid, password, model_name, 'search', [domain])
             print(f"remote_model[0]>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>{remote_model}")
         else:
@@ -399,6 +343,15 @@ class AccountMove(models.Model):
 
     #     return remote_account_id
     
+    def _get_remote_account_id(self, models, db, uid, password, model_name, domain=None):
+        # If a domain is provided, use it to search
+        if domain:
+            print(f"Account domain>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>{domain}")
+            remote_model = models.execute_kw(db, uid, password, model_name, 'search', [domain])
+            print(f"remote_model[0]>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>{remote_model}")
+        else:
+            raise ValueError("Domain is required to search for remote records.")
+    
     def _map_account_to_remote_company(self, models, db, uid, password, company_id, account_code):
         """
         Maps the account code to the remote company's account.
@@ -407,7 +360,7 @@ class AccountMove(models.Model):
             raise ValueError("Account code is required to map the remote account.")
 
         # Fetch the account ID in the remote database using the account code and company_id
-        remote_account_id = self._get_remote_journal_id(
+        remote_account_id = self._get_remote_account_id(
             models, db, uid, password,
             'account.account',
             domain=[
