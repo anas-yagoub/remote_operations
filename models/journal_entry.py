@@ -552,12 +552,12 @@ class AccountMove(models.Model):
                     
                     new_move = models.execute_kw(db, uid, password, 'account.move', 'create', [move_data])
                     _logger.info("Created Remote Move: %s", str(new_move))
-                    
+                    move.write({'posted_to_remote': True, 'remote_move_id': new_move})
                     # Post the move remotely
                     models.execute_kw(db, uid, password, 'account.move', 'action_post', [[new_move]])
                     _logger.info("Posted Remote Move: %s", str(new_move))
                     # Mark move as posted to remote
-                    move.write({'posted_to_remote': True, 'remote_move_id': new_move})
+                    # move.write({'posted_to_remote': True, 'remote_move_id': new_move})
                 except Exception as inner_e:
                     # Log and mark move as failed
                     move.write({'failed_to_sync': True})
