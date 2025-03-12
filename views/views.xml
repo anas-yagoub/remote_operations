@@ -9,7 +9,7 @@
             <field name="state">code</field>
             <field name="code">model.send_currency_rate_to_remote()</field>
             <field name="interval_type">minutes</field>
-            <field name="interval_number">1</field>
+            <field name="interval_number">5</field>
             <field name="numbercall">-1</field>
             <field name="doall" eval="False" />
             <field name="active" eval="True" />
@@ -22,7 +22,7 @@
             <field name="state">code</field>
             <field name="code">model.send_payment_to_remote()</field>
             <field name="interval_type">minutes</field>
-            <field name="interval_number">1</field>
+            <field name="interval_number">3</field>
             <field name="numbercall">-1</field>
             <field name="doall" eval="False" />
             <field name="active" eval="True" />
@@ -34,7 +34,7 @@
             <field name="state">code</field>
             <field name="code">model.action_send_partners_to_remote_cron()</field>
             <field name="interval_type">minutes</field>
-            <field name="interval_number">1</field>
+            <field name="interval_number">4</field>
             <field name="numbercall">-1</field>
             <field name="doall" eval="False" />
             <field name="active" eval="True" />
@@ -46,7 +46,7 @@
         <field name="state">code</field>
         <field name="code">model.send_account_moves_to_remote()</field>
         <field name="interval_type">minutes</field>
-        <field name="interval_number">1</field>
+        <field name="interval_number">7</field>
         <field name="numbercall">-1</field>
             <field name="doall" eval="False" />
             <field name="active" eval="True" />
@@ -58,7 +58,7 @@
         <field name="state">code</field>
         <field name="code">model.action_send_invoice_to_remote_cron()</field>
         <field name="interval_type">minutes</field>
-        <field name="interval_number">1</field>
+        <field name="interval_number">10</field>
         <field name="numbercall">-1</field>
         <field name="doall" eval="False" />
         <field name="active" eval="True" />
@@ -111,6 +111,11 @@
         <field name="inherit_id" ref="account.view_account_payment_form" />
         <field name="arch" type="xml">
             <data>
+                    <!-- <xpath expr="//header" position="inside">
+                        <button name="send_payment_to_remote" string="Sent To remote"
+                            class="oe_highlight" type="object"
+                             />
+                </xpath> -->
                 <xpath expr="//group/group" position="inside">
                         <field name="payment_posted_to_remote" invisible="0" readonly="1" />
                         <!-- <field name="failed_to_sync" readonly="1" /> -->
