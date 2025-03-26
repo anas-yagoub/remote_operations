@@ -20,7 +20,8 @@ class AccountMove(models.Model):
     posted_to_remote = fields.Boolean("Posted to remote", copy=False)
     failed_to_sync = fields.Boolean("Failed to Sync", default=False)
     remote_move_id = fields.Integer(string="Remote Move", copy=False)
-    
+    no_allow_sync = fields.Boolean("Not Allow Sync")
+
     
     def action_sync_to_remote_manual(self):
         """ Manually sync selected account moves to a remote Odoo server """
@@ -123,7 +124,7 @@ class AccountMove(models.Model):
             start_date = date(2024,7,1).isoformat()
             # account_moves = self.search([('posted_to_remote', '=', False),('move_type', '=', 'entry')], limit=10)
             account_moves = self.sudo().search([('posted_to_remote', '=', False), \
-                                                ('state', '=', 'posted'), ('move_type', '=', 'entry'), ('journal_id.type', '=', 'general') ,('failed_to_sync', '=', False),('date', '>=', start_date)], limit=10,
+                                                ('state', '=', 'posted'), ('move_type', '=', 'entry'), ('journal_id.type', '=', 'general') ,('failed_to_sync', '=', False),('date', '>=', start_date),('no_allow_sync','=', False)], limit=10,
                                                order='date asc')
            
         
@@ -532,7 +533,8 @@ class AccountMove(models.Model):
                 ('state', '=', 'posted'),
                 ('move_type', '!=', 'entry'),
                 ('failed_to_sync', '=', False),
-                ('date', '>=', start_date)
+                ('date', '>=', start_date),
+                ('no_allow_sync','=', False)
             ], limit=10, order='date asc')
             
             _logger.info(f"Account Moves to Process: {account_moves.read(['name', 'posted_to_remote'])}")

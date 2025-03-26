@@ -96,7 +96,7 @@
                         <field name="posted_to_remote" invisible="0" readonly="1" />
                         <field name="failed_to_sync" invisible="0" readonly="1" />
                         <field name="remote_move_id" readonly="1" invisible="0"  />
-
+                        <field name="no_allow_sync" />
                 </xpath>
 
               

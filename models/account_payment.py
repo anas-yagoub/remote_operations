@@ -17,21 +17,75 @@ class AccountPayment(models.Model):
     payment_posted_to_remote = fields.Boolean("Payment Posted to remote", copy=False)
     failed_to_sync = fields.Boolean("Failed To Sync", copy=False)
     remote_id = fields.Integer(string="Remote Id", copy=False)
+    
+    
+    def action_sync_payment_to_remote_manual(self):
+        """ Manually sync selected account payments to a remote Odoo server """
+        config_parameters = self.env['ir.config_parameter'].sudo()
+
+        remote_type = config_parameters.get_param('remote_operations.remote_type')
+        if remote_type != 'Branch Database':
+            raise UserError(_("This database is not configured as 'Branch Database'. Sync is not required."))
+
+        url = config_parameters.get_param('remote_operations.url')
+        db = config_parameters.get_param('remote_operations.db')
+        username = config_parameters.get_param('remote_operations.username')
+        password = config_parameters.get_param('remote_operations.password')
+
+        if not all([url, db, username, password]):
+            raise UserError(_("Remote server settings must be fully configured (URL, DB, Username, Password)"))
+
+        try:
+            common = xmlrpc.client.ServerProxy(f'{url}/xmlrpc/2/common', allow_none=True)
+            uid = common.authenticate(db, username, password, {})
+            if not uid:
+                raise UserError(_("Authentication failed with remote server."))
+
+            models = xmlrpc.client.ServerProxy(f'{url}/xmlrpc/2/object', allow_none=True)
+            start_date = fields.Date.to_date('2024-07-01')
+
+            for payment in self:
+                try:
+                    if payment.payment_posted_to_remote:
+                        continue  # Skip already processed records
+
+                    if payment.is_internal_transfer:
+                        continue  # Skip internal transfers
+
+                    if payment.date < start_date:
+                        continue  # Skip payments before the sync date
+
+                    # Ensure partner exists remotely
+                    partner_id = payment._get_remote_id_if_set(models, db, uid, password, 'res.partner', 'name', payment.partner_id)
+                    if not partner_id and payment.partner_id:
+                        partner_id = payment._create_remote_partner(models, db, uid, password, payment.partner_id)
+
+                    payment_data = payment._prepare_payment_data(models, db, uid, password)
+
+                    new_payment_id = models.execute_kw(db, uid, password, 'account.payment', 'create', [payment_data])
+
+                    models.execute_kw(db, uid, password, 'account.payment', 'action_post', [[new_payment_id]])
+
+                    payment.write({
+                        'payment_posted_to_remote': True,
+                        'remote_id': new_payment_id
+                    })
+                    self.env.cr.commit()
+
+                    _logger.info(f"Successfully synced Payment ID {payment.id} to remote server with ID {new_payment_id}")
+
+                except Exception as payment_error:
+                    # payment.write({'failed_to_sync': True})
+                    _logger.error(f"Error syncing Payment ID {payment.id}: {str(payment_error)}")
+                    payment.message_post(body=f"Error syncing Payment ID {payment.id}: {str(payment_error)}")
+                    self.env.cr.rollback()
+
+        except Exception as e:
+            _logger.error(f"Critical error in remote payment sync: {str(e)}")
+            raise UserError(_("Error while sending payment data to remote server: ") + str(e))
+            # sefl.message_post(body=f"Error syncing Payment ID {payment.id}: {str(payment_error)}")
 
 
-
-    # @api.model
-    # def action_send_payments_to_remote_cron(self):
-    #     """Cron job to send payments to the remote server."""
-    #     start_date = date(2024, 7, 1).isoformat()
-    #     payments = self.search([('payment_posted_to_remote', '=', False),('is_internal_transfer', '=', False), ('state', '=', 'posted'), ('date', '>=', start_date)], order='date asc', limit=10)
-    #     for payment in payments:
-    #         try:
-    #             payment.send_payment_to_remote()
-    #             self.env.cr.commit()  # Commit each payment individually
-    #         except Exception as e:
-    #             _logger.error("Error processing payment ID %s: %s", payment.id, str(e))
-    #             self.env.cr.rollback()  # Rollback only for the failed transaction
     @api.model     
     def send_payment_to_remote(self):
         """Send the payment to the remote system."""
@@ -64,8 +118,6 @@ class AccountPayment(models.Model):
                 # ('remote_id', '=', 0)
             ], limit=10, order='date asc')
             
-            print("********************************************payments", payments)
-
             for payment in payments:
                 try:
                     move_id = payment.move_id
@@ -77,6 +129,8 @@ class AccountPayment(models.Model):
                         payment.move_id.write({'posted_to_remote': True})  
                     models.execute_kw(db, uid, password, 'account.payment', 'action_post', [[new_payment_id]])
                     _logger.info("Payment Has been created *********************: %s", new_payment_id)
+                    payment.message_post(body="Payment Has been created ")
+
 
                 except Exception as e:
                     # payment.write({'failed_to_sync': True})
