@@ -17,6 +17,8 @@ class AccountPayment(models.Model):
     payment_posted_to_remote = fields.Boolean("Payment Posted to remote", copy=False)
     failed_to_sync = fields.Boolean("Failed To Sync", copy=False)
     remote_id = fields.Integer(string="Remote Id", copy=False)
+    no_allow_sync = fields.Boolean("Not Allow Sync")
+
     
     
     def action_sync_payment_to_remote_manual(self):
@@ -111,7 +113,7 @@ class AccountPayment(models.Model):
             start_date = date(2024, 7, 1).isoformat()
             payments = self.search([
                 ('payment_posted_to_remote', '=', False),
-                # ('failed_to_sync', '=', False),
+                ('no_allow_sync', '=', False),
                 ('is_internal_transfer', '=', False),
                 ('date', '>=', start_date),
                 ('state', '=', 'posted'),
