@@ -18,6 +18,152 @@ class AccountPayment(models.Model):
     failed_to_sync = fields.Boolean("Failed To Sync", copy=False)
     remote_id = fields.Integer(string="Remote Id", copy=False)
     no_allow_sync = fields.Boolean("Not Allow Sync")
+    remote_source_line_id = fields.Integer(string="Remote Source Line ID", copy=False)  # Store the source statement line ID
+    
+    @api.model
+    def send_internal_transfer_payment_to_remote(self):
+        """Sync internal transfer payments to the remote Odoo 18 database as bank statement lines."""
+        config_parameters = self.env['ir.config_parameter'].sudo()
+        remote_type = config_parameters.get_param('remote_operations.remote_type')
+        if remote_type != 'Branch Database':
+            _logger.info("Database is not configured as 'Branch Database'. Skipping sync.")
+            return
+
+        # Retrieve remote server settings
+        url = config_parameters.get_param('remote_operations.url')
+        db = config_parameters.get_param('remote_operations.db')
+        username = config_parameters.get_param('remote_operations.username')
+        password = config_parameters.get_param('remote_operations.password')
+
+        if not all([url, db, username, password]):
+            raise ValidationError("Remote server settings must be fully configured (URL, DB, Username, Password)")
+
+        try:
+            # Connect to the remote server
+            common = xmlrpc.client.ServerProxy(f'{url}/xmlrpc/2/common', allow_none=True)
+            uid = common.authenticate(db, username, password, {})
+            models = xmlrpc.client.ServerProxy(f'{url}/xmlrpc/2/object', allow_none=True)
+
+            # Search for internal transfer payments to sync (batch processing)
+            start_date = date(2024, 7, 1).isoformat()
+            payments = self.search([
+                ('payment_posted_to_remote', '=', False),
+                ('no_allow_sync', '=', False),
+                ('is_internal_transfer', '=', True),
+                ('date', '>=', start_date),
+                ('state', '=', 'posted'),
+            ], limit=10, order='date asc')  # Process in batches of 50
+
+            if not payments:
+                _logger.info("No internal transfer payments to sync.")
+                return
+
+            for payment in payments:
+                try:
+                    # Prepare data for the bank statement lines
+                    _logger.info("payment Line Data for ID ***************** %s: %s", payment.id)
+                    payment_line_data = payment._prepare_bank_statement_line_data(models, db, uid, password)
+                    _logger.info("Source Line Data for ID ***********************8%s: %s", payment.id, payment_line_data)
+
+                    # Create the source statement line (outgoing)
+                    payment_line_id = models.execute_kw(db, uid, password, 'account.bank.statement.line', 'create', [payment_line_data])
+                    _logger.info("Created source statement line in remote database: ID %s", payment_line_id)
+
+                    # Update the local payment
+                    payment.write({
+                        'payment_posted_to_remote': True,
+                        'remote_source_line_id': payment_line_id,
+                        'failed_to_sync': False,
+                    })
+                    # if payment.move_id:
+                    #     payment.move_id.write({'posted_to_remote': True})
+                    payment.message_post(body=f"Internal transfer synced to remote database: Source Line ID {payment_line_id}")
+
+                except Exception as e:
+                    payment.write({'failed_to_sync': True})
+                    _logger.error("Error syncing payment ID %s: %s", payment.id, str(e))
+                    payment.message_post(body=f"Error syncing payment ID {payment.id}: {str(e)}")
+
+        except Exception as e:
+            raise ValidationError(f"Error connecting to remote server: {str(e)}")
+        
+    def _prepare_bank_statement_line_data(self, models, db, uid, password):
+        """Prepare data for the source and destination bank statement lines in Odoo 18."""
+        amount = -self.amount if self.payment_type == 'outbound' else self.amount
+        currency_id = self._get_remote_id_if_set(models, db, uid, password, 'res.currency', 'name', self.currency_id)
+        payment_data = {
+            'journal_id': self._map_journal_to_remote_company(models, db, uid, password, self.journal_id),
+            'currency_id': currency_id  or None,
+            'amount': amount or None,
+            'date': self.date.isoformat() if self.date else False,
+            'payment_ref': self.ref or f"Internal Transfer Out - {self.name}" or  None,
+            'company_id': self._map_branch_to_remote_company(models, db, uid, password, self.branch_id, self.company_id) or None,
+        }
+        return payment_data
+
+    # def _prepare_bank_statement_line_data(self, models, db, uid, password):
+    #     """Prepare data for the source and destination bank statement lines in Odoo 18."""
+    #     # Map journals and company
+    #     source_journal_id = self._get_remote_id(models, db, uid, password, 'account.journal', 'name', self.journal_id.name)
+    #     dest_journal_id = self._get_remote_id(models, db, uid, password, 'account.journal', 'name', self.destination_journal_id.name)
+    #     company_id = self._map_branch_to_remote_company(models, db, uid, password, self.branch_id, self.company_id)
+    #     currency_id = self._get_remote_id_if_set(models, db, uid, password, 'res.currency', 'name', self.currency_id)
+
+
+    #     # Prepare the source statement line (outgoing)
+    #     source_line_data = {
+    #         'journal_id': source_journal_id,
+    #         'company_id': company_id,
+    #         'currency_id': currency_id or False,
+    #         'amount': -self.amount,  # Outgoing (negative)
+    #         'date': self.date.isoformat() if self.date else False,
+    #         'payment_ref': self.ref or f"Internal Transfer Out - {self.name}",
+    #     }
+
+    #     # Prepare the destination statement line (incoming)
+    #     dest_line_data = {
+    #         'journal_id': dest_journal_id,
+    #         'company_id': company_id,
+    #         'currency_id': currency_id or False,
+    #         'amount': self.amount,  # Incoming (positive)
+    #         'date': self.date.isoformat() if self.date else False,
+    #         'payment_ref': self.ref or f"Internal Transfer In - {self.name}",
+    #     }
+
+    #     return source_line_data, dest_line_data
+    
+    
+    
+    
+        # Map journals and company
+        # source_journal_id = self._get_remote_id(models, db, uid, password, 'account.journal', 'name', self.journal_id.name)
+        # dest_journal_id = self._get_remote_id(models, db, uid, password, 'account.journal', 'name', self.destination_journal_id.name)
+        # company_id = self._map_branch_to_remote_company(models, db, uid, password, self.branch_id, self.company_id)
+        # currency_id = self._get_remote_id_if_set(models, db, uid, password, 'res.currency', 'name', self.currency_id)
+
+
+        # # Prepare the source statement line (outgoing)
+        # source_line_data = {
+        #     'journal_id': source_journal_id,
+        #     'company_id': company_id,
+        #     'currency_id': currency_id or False,
+        #     'amount': -self.amount,  # Outgoing (negative)
+        #     'date': self.date.isoformat() if self.date else False,
+        #     'payment_ref': self.ref or f"Internal Transfer Out - {self.name}",
+        # }
+
+        # # Prepare the destination statement line (incoming)
+        # dest_line_data = {
+        #     'journal_id': dest_journal_id,
+        #     'company_id': company_id,
+        #     'currency_id': currency_id or False,
+        #     'amount': self.amount,  # Incoming (positive)
+        #     'date': self.date.isoformat() if self.date else False,
+        #     'payment_ref': self.ref or f"Internal Transfer In - {self.name}",
+        # }
+
+        # return source_line_data, dest_line_data
+
 
     
     
@@ -142,7 +288,7 @@ class AccountPayment(models.Model):
 
         except Exception as e:
             raise ValidationError("Error while sending payment data to remote server: {}".format(e))
-
+    
     def _prepare_payment_data(self, models, db, uid, password):
         """Prepare the payment data for the remote server."""
         partner_id = self._get_remote_id_if_set(models, db, uid, password, 'res.partner', 'name', self.partner_id)
@@ -164,9 +310,88 @@ class AccountPayment(models.Model):
             # 'payment_method_line_id': self._get_remote_id(models, db, uid, password, 'account.payment.method.line', 'name', self.payment_method_id),
         }
         return payment_data
+        
     
+    # @api.model     
+    # def send_internal_transfer_payment_to_remote(self):
+    #     """Send the internal transfer payment to the remote system."""
+    #     config_parameters = self.env['ir.config_parameter'].sudo()
+    #     remote_type = config_parameters.get_param('remote_operations.remote_type')
+    #     if remote_type != 'Branch Database':
+    #         _logger.info("Database is not configured as 'Branch Database'. Skipping sending payments to remote.")
+    #         return
+
+    #     url = config_parameters.get_param('remote_operations.url')
+    #     db = config_parameters.get_param('remote_operations.db')
+    #     username = config_parameters.get_param('remote_operations.username')
+    #     password = config_parameters.get_param('remote_operations.password')
+
+    #     if not all([url, db, username, password]):
+    #         raise ValidationError("Remote server settings must be fully configured (URL, DB, Username, Password)")
+
+    #     try:
+    #         common = xmlrpc.client.ServerProxy('{}/xmlrpc/2/common'.format(url), allow_none=True)
+    #         uid = common.authenticate(db, username, password, {})
+    #         models = xmlrpc.client.ServerProxy('{}/xmlrpc/2/object'.format(url), allow_none=True)
+
+    #         start_date = date(2024, 7, 1).isoformat()
+    #         payments = self.search([
+    #             ('payment_posted_to_remote', '=', False),
+    #             ('no_allow_sync', '=', False),
+    #             ('is_internal_transfer', '=', True),
+    #             ('date', '>=', start_date),
+    #             ('state', '=', 'posted'),
+    #             # ('remote_id', '=', 0)
+    #         ], limit=1, order='date asc')
+            
+    #         for payment in payments:
+    #             try:
+    #                 move_id = payment.move_id
+    #                 payment_data = payment._prepare_internal_transfer_payment_data(models, db, uid, password)
+    #                 _logger.info("Payment Data: %s", payment_data, payment)
+    #                 new_payment_id = models.execute_kw(db, uid, password, 'account.bank.statement.line', 'create', [payment_data])
+    #                 payment.write({'payment_posted_to_remote': True, 'remote_id': new_payment_id})
+    #                 if payment.move_id:
+    #                     payment.move_id.write({'posted_to_remote': True})  
+    #                 # models.execute_kw(db, uid, password, 'account.payment', 'action_post', [[new_payment_id]])
+    #                 _logger.info("Payment Has been created *********************: %s", new_payment_id)
+    #                 payment.message_post(body="Payment Has been created ")
+
+
+    #             except Exception as e:
+    #                 # payment.write({'failed_to_sync': True})
+    #                 _logger.error("Error processing payment ID %s: %s", payment.id, str(e))
+    #                 payment.message_post(body="Error processing payment ID {}: {}".format(payment.id, str(e)))
+
+
+    #     except Exception as e:
+    #         raise ValidationError("Error while sending payment data to remote server: {}".format(e))
+        
+    # def _prepare_internal_transfer_payment_data(self, models, db, uid, password):
+    #     """Prepare the payment data for the remote server."""
+    #     # partner_id = self._get_remote_id_if_set(models, db, uid, password, 'res.partner', 'name', self.partner_id)
+    #     # if not partner_id and self.partner_id:
+    #     #     # Create the partner in the remote system if it doesn't exist
+    #     #     partner_id = self._create_remote_partner(models, db, uid, password, self.partner_id)
+    #     journal_id = self._get_remote_id(models, db, uid, password, 'account.journal', 'name', self.journal_id.name)
+    #     currency_id = self._get_remote_id_if_set(models, db, uid, password, 'res.currency', 'name', self.currency_id)
+    #     payment_data = {
+    #         # 'partner_id': partner_id,
+    #         'journal_id': self._map_journal_to_remote_company(models, db, uid, password, self.journal_id),
+    #         'currency_id': currency_id  or None,
+    #         'amount': self.amount or None,
+    #         'date': self.date  or None,
+    #         # 'payment_type': self.payment_type  or None,
+    #         # 'partner_type': self.partner_type  or None,
+    #         'payment_ref': self.ref or None,
+    #         'company_id': self._map_branch_to_remote_company(models, db, uid, password, self.branch_id, self.company_id) or None,
+    #         # 'payment_method_line_id': self._get_remote_id(models, db, uid, password, 'account.payment.method.line', 'name', self.payment_method_id),
+    #     }
+    #     return payment_data
+
+   
     
-    
+
     
     def _map_branch_to_remote_company(self, models, db, uid, password, branch_id=None, company_id=None):
         """
