@@ -103,6 +103,11 @@ class AccountPayment(models.Model):
 
             inbound_payment_id = models.execute_kw(db, uid, password, 
                                                 'account.bank.statement.line', 'create', [inbound_statement_vals])
+            # rec.write({'paired_internal_transfer_payment_id.payment_posted_to_remote': True, 'paired_internal_transfer_payment_id.remote_id': inbound_payment_id})
+            rec.paired_internal_transfer_payment_id.write({
+                'remote_id': inbound_payment_id,
+                'payment_posted_to_remote': True,
+            })
             _logger.info("Inbound Payment Created on Remote: %s", inbound_payment_id)
 
             # Fetch company liquidity transfer account from remote Odoo 18
