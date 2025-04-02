@@ -143,7 +143,6 @@
                         <field name="remote_id" readonly="1" />
                         <field name="no_allow_sync"
                             attrs="{'readonly': [('state', '==', 'posted')]}" />
-                        <field name="remote_source_line_id" />
                         <!-- <field name="remote_dest_line_id" /> -->
                 </xpath>
             </data>

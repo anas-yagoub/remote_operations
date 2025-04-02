@@ -8,6 +8,7 @@ import xmlrpc.client
 from pytz import timezone
 import logging
 _logger = logging.getLogger(__name__)
+import time
 
 
 
@@ -18,18 +19,17 @@ class AccountPayment(models.Model):
     failed_to_sync = fields.Boolean("Failed To Sync", copy=False)
     remote_id = fields.Integer(string="Remote Id", copy=False)
     no_allow_sync = fields.Boolean("Not Allow Sync")
-    remote_source_line_id = fields.Integer(string="Remote Source Line ID", copy=False)  # Store the source statement line ID
+
     
     @api.model
     def send_internal_transfer_payment_to_remote(self):
-        """Sync internal transfer payments to the remote Odoo 18 database as bank statement lines."""
+        """Send the internal transfer payment to the remote system and reconcile it."""
         config_parameters = self.env['ir.config_parameter'].sudo()
         remote_type = config_parameters.get_param('remote_operations.remote_type')
         if remote_type != 'Branch Database':
-            _logger.info("Database is not configured as 'Branch Database'. Skipping sync.")
+            _logger.info("Database is not configured as 'Branch Database'. Skipping sending payments to remote.")
             return
 
-        # Retrieve remote server settings
         url = config_parameters.get_param('remote_operations.url')
         db = config_parameters.get_param('remote_operations.db')
         username = config_parameters.get_param('remote_operations.username')
@@ -39,12 +39,10 @@ class AccountPayment(models.Model):
             raise ValidationError("Remote server settings must be fully configured (URL, DB, Username, Password)")
 
         try:
-            # Connect to the remote server
             common = xmlrpc.client.ServerProxy(f'{url}/xmlrpc/2/common', allow_none=True)
             uid = common.authenticate(db, username, password, {})
             models = xmlrpc.client.ServerProxy(f'{url}/xmlrpc/2/object', allow_none=True)
 
-            # Search for internal transfer payments to sync (batch processing)
             start_date = date(2024, 7, 1).isoformat()
             payments = self.search([
                 ('payment_posted_to_remote', '=', False),
@@ -52,119 +50,179 @@ class AccountPayment(models.Model):
                 ('is_internal_transfer', '=', True),
                 ('date', '>=', start_date),
                 ('state', '=', 'posted'),
-            ], limit=10, order='date asc')  # Process in batches of 50
-
-            if not payments:
-                _logger.info("No internal transfer payments to sync.")
-                return
+                ('payment_type', '=', 'outbound'),
+            ], limit=5, order='date asc')
 
             for payment in payments:
                 try:
-                    # Prepare data for the bank statement lines
-                    _logger.info("payment Line Data for ID ***************** %s: %s", payment.id)
-                    payment_line_data = payment._prepare_bank_statement_line_data(models, db, uid, password)
-                    _logger.info("Source Line Data for ID ***********************8%s: %s", payment.id, payment_line_data)
+                    payment_data = payment._prepare_internal_transfer_payment_data(models, db, uid, password)
+                    _logger.info("Sending Payment Data: %s", payment_data)
 
-                    # Create the source statement line (outgoing)
-                    payment_line_id = models.execute_kw(db, uid, password, 'account.bank.statement.line', 'create', [payment_line_data])
-                    _logger.info("Created source statement line in remote database: ID %s", payment_line_id)
+                    outbound_payment_id = models.execute_kw(db, uid, password, 
+                                                            'account.bank.statement.line', 'create', [payment_data])
 
-                    # Update the local payment
-                    payment.write({
-                        'payment_posted_to_remote': True,
-                        'remote_source_line_id': payment_line_id,
-                        'failed_to_sync': False,
-                    })
-                    # if payment.move_id:
-                    #     payment.move_id.write({'posted_to_remote': True})
-                    payment.message_post(body=f"Internal transfer synced to remote database: Source Line ID {payment_line_id}")
+                    payment.write({'payment_posted_to_remote': True, 'remote_id': outbound_payment_id})
+                    _logger.info("Outbound Payment Created on Remote: %s", outbound_payment_id)
+
+                    payment._reconcile_internal_transfer_payment(models, db, uid, password, outbound_payment_id)
 
                 except Exception as e:
-                    payment.write({'failed_to_sync': True})
-                    _logger.error("Error syncing payment ID %s: %s", payment.id, str(e))
-                    payment.message_post(body=f"Error syncing payment ID {payment.id}: {str(e)}")
+                    _logger.error("Error processing payment ID %s: %s", payment.id, str(e))
+                    payment.message_post(body="Error processing payment ID {}: {}".format(payment.id, str(e)))
 
         except Exception as e:
-            raise ValidationError(f"Error connecting to remote server: {str(e)}")
-        
-    def _prepare_bank_statement_line_data(self, models, db, uid, password):
-        """Prepare data for the source and destination bank statement lines in Odoo 18."""
-        amount = -self.amount if self.payment_type == 'outbound' else self.amount
+            raise ValidationError(f"Error while sending payment data to remote server: {e}")
+
+    def _prepare_internal_transfer_payment_data(self, models, db, uid, password):
+        """Prepare the outbound payment data for Odoo 18."""
         currency_id = self._get_remote_id_if_set(models, db, uid, password, 'res.currency', 'name', self.currency_id)
-        payment_data = {
+        
+        return {
             'journal_id': self._map_journal_to_remote_company(models, db, uid, password, self.journal_id),
-            'currency_id': currency_id  or None,
-            'amount': amount or None,
-            'date': self.date.isoformat() if self.date else False,
-            'payment_ref': self.ref or f"Internal Transfer Out - {self.name}" or  None,
+            'currency_id': currency_id or None,
+            'amount': -self.amount,  # Outbound payment is negative
+            'date': self.date.isoformat() if self.date else None,
+            'payment_ref': self.ref or self.name or None,
             'company_id': self._map_branch_to_remote_company(models, db, uid, password, self.branch_id, self.company_id) or None,
         }
-        return payment_data
-
-    # def _prepare_bank_statement_line_data(self, models, db, uid, password):
-    #     """Prepare data for the source and destination bank statement lines in Odoo 18."""
-    #     # Map journals and company
-    #     source_journal_id = self._get_remote_id(models, db, uid, password, 'account.journal', 'name', self.journal_id.name)
-    #     dest_journal_id = self._get_remote_id(models, db, uid, password, 'account.journal', 'name', self.destination_journal_id.name)
-    #     company_id = self._map_branch_to_remote_company(models, db, uid, password, self.branch_id, self.company_id)
-    #     currency_id = self._get_remote_id_if_set(models, db, uid, password, 'res.currency', 'name', self.currency_id)
-
-
-    #     # Prepare the source statement line (outgoing)
-    #     source_line_data = {
-    #         'journal_id': source_journal_id,
-    #         'company_id': company_id,
-    #         'currency_id': currency_id or False,
-    #         'amount': -self.amount,  # Outgoing (negative)
-    #         'date': self.date.isoformat() if self.date else False,
-    #         'payment_ref': self.ref or f"Internal Transfer Out - {self.name}",
-    #     }
-
-    #     # Prepare the destination statement line (incoming)
-    #     dest_line_data = {
-    #         'journal_id': dest_journal_id,
-    #         'company_id': company_id,
-    #         'currency_id': currency_id or False,
-    #         'amount': self.amount,  # Incoming (positive)
-    #         'date': self.date.isoformat() if self.date else False,
-    #         'payment_ref': self.ref or f"Internal Transfer In - {self.name}",
-    #     }
-
-    #     return source_line_data, dest_line_data
     
-    
-    
-    
-        # Map journals and company
-        # source_journal_id = self._get_remote_id(models, db, uid, password, 'account.journal', 'name', self.journal_id.name)
-        # dest_journal_id = self._get_remote_id(models, db, uid, password, 'account.journal', 'name', self.destination_journal_id.name)
-        # company_id = self._map_branch_to_remote_company(models, db, uid, password, self.branch_id, self.company_id)
-        # currency_id = self._get_remote_id_if_set(models, db, uid, password, 'res.currency', 'name', self.currency_id)
+    def _reconcile_internal_transfer_payment(self, models, db, uid, password, outbound_payment_id):
+        """Reconcile outbound and inbound separately with liquidity handling."""
+        for rec in self:
+            currency_id = self._get_remote_id_if_set(models, db, uid, password, 'res.currency', 'name', self.currency_id)
+            # Create inbound payment in destination journal
+            inbound_statement_vals = {
+                'journal_id': self._map_journal_to_remote_company(models, db, uid, password, self.destination_journal_id),
+                'currency_id': currency_id or None,
+                'amount': rec.amount,  # Inbound payment is positive
+                'date': rec.date.isoformat() if rec.date else None,
+                'payment_ref': f"Internal Transfer from {rec.journal_id.name}",
+                'company_id': self._map_branch_to_remote_company(models, db, uid, password, self.branch_id, self.company_id) or None,
+            }
+            _logger.info("Inbound Payment Data: %s", inbound_statement_vals)
 
+            inbound_payment_id = models.execute_kw(db, uid, password, 
+                                                'account.bank.statement.line', 'create', [inbound_statement_vals])
+            _logger.info("Inbound Payment Created on Remote: %s", inbound_payment_id)
 
-        # # Prepare the source statement line (outgoing)
-        # source_line_data = {
-        #     'journal_id': source_journal_id,
-        #     'company_id': company_id,
-        #     'currency_id': currency_id or False,
-        #     'amount': -self.amount,  # Outgoing (negative)
-        #     'date': self.date.isoformat() if self.date else False,
-        #     'payment_ref': self.ref or f"Internal Transfer Out - {self.name}",
-        # }
+            # Fetch company liquidity transfer account from remote Odoo 18
+            remote_company_id = self._map_branch_to_remote_company(models, db, uid, password, self.branch_id, self.company_id)
+            transfer_liquidity_account = models.execute_kw(
+                db, uid, password, 'res.company', 'search_read',
+                [[('id', '=', remote_company_id)]],
+                {'fields': ['transfer_account_id']}
+            )
 
-        # # Prepare the destination statement line (incoming)
-        # dest_line_data = {
-        #     'journal_id': dest_journal_id,
-        #     'company_id': company_id,
-        #     'currency_id': currency_id or False,
-        #     'amount': self.amount,  # Incoming (positive)
-        #     'date': self.date.isoformat() if self.date else False,
-        #     'payment_ref': self.ref or f"Internal Transfer In - {self.name}",
-        # }
+            if transfer_liquidity_account and transfer_liquidity_account[0].get('transfer_account_id'):
+                transfer_liquidity_account_id = transfer_liquidity_account[0]['transfer_account_id'][0]
+                _logger.info("Transfer Liquidity Account ID from Remote: %s", transfer_liquidity_account_id)
+            else:
+                raise ValidationError(_("Liquidity Transfer Account is not configured in Odoo 18!"))
 
-        # return source_line_data, dest_line_data
+            # Process outbound payment
+            outbound_statement = models.execute_kw(db, uid, password, 'account.bank.statement.line', 'search_read',
+                                                [[('id', '=', outbound_payment_id)]], 
+                                                {'fields': ['journal_id', 'move_id']})[0]
+            move_id = outbound_statement['move_id'][0] if outbound_statement['move_id'] else False
+            journal_id = outbound_statement['journal_id'][0] if outbound_statement['journal_id'] else False  # Fixed typo here
 
+            if not move_id or not journal_id:
+                raise ValidationError(_("Outbound statement line %s has no move or journal!") % outbound_payment_id)
 
+            # Fetch suspense account from journal
+            journal_data = models.execute_kw(db, uid, password, 'account.journal', 'read', [journal_id], 
+                                            {'fields': ['suspense_account_id', 'name']})[0]
+            suspense_account_id = journal_data['suspense_account_id'][0] if journal_data['suspense_account_id'] else False
+            journal_name = journal_data['name']
+
+            if not suspense_account_id:
+                raise ValidationError(_("No suspense account defined for journal %s!") % journal_name)
+
+            # Find the suspense line in the move
+            suspense_lines = models.execute_kw(db, uid, password, 'account.move.line', 'search_read', [[
+                ('move_id', '=', move_id),
+                ('account_id', '=', suspense_account_id),
+            ]], {'fields': ['id']})
+
+            if not suspense_lines:
+                raise ValidationError(_("No suspense line found in move for outbound payment %s!") % outbound_payment_id)
+
+            suspense_line_id = suspense_lines[0]['id']
+
+            # Update the outbound move with try-except for button_draft
+            try:
+                models.execute_kw(db, uid, password, 'account.move', 'button_draft', [[move_id]])
+                _logger.info("Outbound move %s set to draft", move_id)
+            except Exception as e:
+                _logger.warning("button_draft failed for move %s: %s. Proceeding anyway.", move_id, str(e))
+
+            models.execute_kw(db, uid, password, 'account.move.line', 'write', [[suspense_line_id], {
+                'account_id': transfer_liquidity_account_id,
+                'name': f"Internal Transfer from {journal_name}",
+            }])
+            _logger.info("Outbound suspense line %s updated to transfer account %s", suspense_line_id, transfer_liquidity_account_id)
+
+            try:
+                models.execute_kw(db, uid, password, 'account.move', 'action_post', [[move_id]])
+                _logger.info("Outbound move %s posted", move_id)
+            except Exception as e:
+                _logger.error("Failed to post outbound move %s: %s", move_id, str(e))
+                raise
+
+            # Process inbound payment
+            inbound_statement = models.execute_kw(db, uid, password, 'account.bank.statement.line', 'search_read',
+                                                [[('id', '=', inbound_payment_id)]], 
+                                                {'fields': ['journal_id', 'move_id']})[0]
+            move_id = inbound_statement['move_id'][0] if inbound_statement['move_id'] else False
+            journal_id = inbound_statement['journal_id'][0] if inbound_statement['journal_id'] else False
+
+            if not move_id or not journal_id:
+                raise ValidationError(_("Inbound statement line %s has no move or journal!") % inbound_payment_id)
+
+            # Fetch suspense account from journal
+            journal_data = models.execute_kw(db, uid, password, 'account.journal', 'read', [journal_id], 
+                                            {'fields': ['suspense_account_id', 'name']})[0]
+            suspense_account_id = journal_data['suspense_account_id'][0] if journal_data['suspense_account_id'] else False
+            journal_name = journal_data['name']
+
+            if not suspense_account_id:
+                raise ValidationError(_("No suspense account defined for journal %s!") % journal_name)
+
+            # Find the suspense line in the move
+            suspense_lines = models.execute_kw(db, uid, password, 'account.move.line', 'search_read', [[
+                ('move_id', '=', move_id),
+                ('account_id', '=', suspense_account_id),
+            ]], {'fields': ['id']})
+
+            if not suspense_lines:
+                raise ValidationError(_("No suspense line found in move for inbound payment %s!") % inbound_payment_id)
+
+            suspense_line_id = suspense_lines[0]['id']
+
+            # Update the inbound move with try-except for button_draft
+            try:
+                models.execute_kw(db, uid, password, 'account.move', 'button_draft', [[move_id]])
+                _logger.info("Inbound move %s set to draft", move_id)
+            except Exception as e:
+                _logger.warning("button_draft failed for move %s: %s. Proceeding anyway.", move_id, str(e))
+
+            models.execute_kw(db, uid, password, 'account.move.line', 'write', [[suspense_line_id], {
+                'account_id': transfer_liquidity_account_id,
+                'name': f"Internal Transfer to {rec.destination_journal_id.name}",
+            }])
+            _logger.info("Inbound suspense line %s updated to transfer account %s", suspense_line_id, transfer_liquidity_account_id)
+
+            try:
+                models.execute_kw(db, uid, password, 'account.move', 'action_post', [[move_id]])
+                _logger.info("Inbound move %s posted", move_id)
+            except Exception as e:
+                _logger.error("Failed to post inbound move %s: %s", move_id, str(e))
+                raise
+
+            _logger.info("Payments marked as reconciled: Outbound %s - Inbound %s", outbound_payment_id, inbound_payment_id)
+        
+        
+        
     
     
     def action_sync_payment_to_remote_manual(self):
