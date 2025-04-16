@@ -400,16 +400,6 @@ class AccountMove(models.Model):
         print(f"Mapped Account Name {account_codename} to Remote Account ID {remote_account_id}")
         return remote_account_id
 
-    # def _prepare_analytic_distribution(self, models, db, uid, password, local_analytic_distribution):
-    #     remote_analytic_distribution = {}
-        
-    #     if local_analytic_distribution:
-    #         for local_analytic_account_id, distribution_percentage in local_analytic_distribution.items():
-    #             local_analytic_account = self.env['account.analytic.account'].browse(int(local_analytic_account_id))
-    #             remote_analytic_account_id = self._get_remote_id(models, db, uid, password, 'account.analytic.account', 'name', local_analytic_account.name)
-    #             remote_analytic_distribution[str(remote_analytic_account_id)] = distribution_percentage
-
-    #     return remote_analytic_distribution
     
     def _get_remote_company_id(self, models, db, uid, password):
         # Fetch the first company from the remote database
@@ -418,17 +408,7 @@ class AccountMove(models.Model):
             raise ValidationError(_("No company found in the remote database."))
         return remote_company[0]['id']
 
-    # def _get_remote_parent_company_id(self, models, db, uid, password, company_id):
-    #     # Fetch the first company from the remote database
-    #     remote_company = models.execute_kw(db, uid, password, 'res.company', 'search_read', [[('id','=', company_id)]],
-    #                                        {'fields': ['parent_id'], 'limit': 1})
-    #     if not remote_company:
-    #         raise ValidationError(_("No parent company found in the remote database."))
-
-    #     parent_company_id = remote_company[0]['parent_id']
-    #     print(f"Remote Parent Company ****************************{remote_company}********************************")
-
-    #     return parent_company_id[0]
+   
 
     def _get_remote_id(self, models, db, uid, password, model, field_name, field_value):
         remote_record = models.execute_kw(
@@ -848,6 +828,11 @@ class AccountMove(models.Model):
     #
     #     print(f"Mapped Account Code {account_code} to Remote Account ID {remote_account_id}")
     #     return remote_account_id
+    def button_cancel(self):
+        result = super(AccountMove, self).button_cancel()
+        for move in self:
+            move._reset_cancel_remote_record()
+        return result
     
     def button_draft(self):
         result = super(AccountMove, self).button_draft()
@@ -862,6 +847,42 @@ class AccountMove(models.Model):
                 move._update_remote_record()
             else: 
                 move._update_invoice_remote_record()
+    
+    def _reset_cancel_remote_record(self):
+        """Reset the corresponding record in the remote Odoo 18 database."""
+        self.ensure_one()
+        if not self.remote_move_id:
+            return  # No remote record to reset
+
+        config_parameters = self.env['ir.config_parameter'].sudo()
+        url = config_parameters.get_param('remote_operations.url')
+        db = config_parameters.get_param('remote_operations.db')
+        username = config_parameters.get_param('remote_operations.username')
+        password = config_parameters.get_param('remote_operations.password')
+
+        if not all([url, db, username, password]):
+            _logger.error("Remote server settings are incomplete.")
+            return
+
+        try:
+            # Connect to the remote Odoo database
+            common = xmlrpc.client.ServerProxy('{}/xmlrpc/2/common'.format(url), allow_none=True)
+            uid = common.authenticate(db, username, password, {})
+            models = xmlrpc.client.ServerProxy('{}/xmlrpc/2/object'.format(url), allow_none=True)
+
+            # Reset the state of the remote record to draft
+            _logger.info("Resetting remote record ID %s to cancel.", self.remote_move_id)
+            models.execute_kw(
+                db, uid, password, 
+                'account.move', 
+                'write', 
+                [[self.remote_move_id], {'state': 'cancel'}]
+            )
+            _logger.info("Successfully reset remote record ID %s to cancel.", self.remote_move_id)
+
+        except Exception as e:
+            _logger.error("Error resetting remote record ID %s to cancel: %s", self.remote_move_id, str(e))
+        
 
 
     def _reset_remote_record(self):
