@@ -515,7 +515,7 @@ class AccountMove(models.Model):
                 ('failed_to_sync', '=', False),
                 ('date', '>=', start_date),
                 ('no_allow_sync','=', False)
-            ], limit=10, order='date asc')
+            ], limit=2, order='date asc')
             
             _logger.info(f"Account Moves to Process: {account_moves.read(['name', 'posted_to_remote'])}")
             
@@ -539,7 +539,6 @@ class AccountMove(models.Model):
                     models.execute_kw(db, uid, password, 'account.move', 'action_post', [[new_move]])
                     _logger.info("Posted Remote Move: %s", str(new_move))
                     # Mark move as posted to remote
-                    # move.write({'posted_to_remote': True, 'remote_move_id': new_move})
                 except Exception as inner_e:
                     # Log and mark move as failed
                     move.write({'failed_to_sync': True})
@@ -685,50 +684,48 @@ class AccountMove(models.Model):
 
     def _prepare_invoice_data(self, models, db, uid, password, move, company_id):
         move_lines = []
+        item_lines = []
         partner = False
+        
+        for line in move.line_ids:
+            # if line.display_type in ('product', 'line_section', 'line_note'):
+            #     continue
+            
+            account_code = line.account_id.code
+            account_name_to_check = line.account_id.name
+            if line.account_id.substitute_account:
+                account_code = line.account_id.substitute_account.name
+                account_name_to_check = line.account_id.substitute_account.name
+
+            account_id = self._map_account_name_to_remote_company(models, db, uid, password, company_id,
+                                                                      account_name_to_check)
+
+            currency_id = self._get_remote_id_if_set(models, db, uid, password, 'res.currency', 'name', line.currency_id)
+            
+            remote_analytic_account_id = self._prepare_analytic_distribution(models, db, uid, password, line.analytic_account_id,
+                                                                             company_id)
+
+            move_item_data = {
+                'account_id': account_id,
+                'name': line.name,
+                'debit': line.debit,
+                'credit': line.credit,
+                'partner_id': self._get_remote_id_if_set(models, db, uid, password, 'res.partner', 'name', line.partner_id) or None,
+                'currency_id': currency_id,
+                'amount_currency': line.amount_currency,
+                'analytic_distribution': {str(remote_analytic_account_id): 100} if remote_analytic_account_id else {} or None,
+            }
+
+            item_lines.append((0, 0, move_item_data))
+        
         for line in move.invoice_line_ids:
-            # """Reroute accounts according to product's account, or category or \
-            # line.account_id as per posted (last resort) """
-            #
-            # product_id = self.env['product.product'].search([
-            #     '|',
-            #     '|',
-            #     ('id', '=', line.product_id.id),
-            #     ('name', '=', line.product_id.name),
-            #     ('name', '=', line.name)
-            # ], limit=1)
-            #
-            # product_account_income = False
-            # product_account_expense = False
-            # product_account_income_category = False
-            # product_account_expense_category = False
-            # product_account = False
-            #
-            # if product_id:
-            #     product_account_income = product_id.property_account_income_id
-            #     product_account_expense = product_id.property_account_expense_id
-            #     product_account_income_category = product_id.categ_id.property_account_income_categ_id
-            #     product_account_expense_category = product_id.categ_id.property_account_expense_categ_id
-            #
-            # _logger.info(f"\nProduct Obtained: {product_id.read(['name'])} \n-------------")
-            # if move.move_type in ['out_invoice', 'out_refund', 'out_receipt']:
-            #     product_account = product_account_income if product_account_income else product_account_income_category
-            # elif move.move_type in ['in_invoice', 'in_refund', 'in_receipt']:
-            #     product_account = product_account_expense if product_account_expense else \
-            #         product_account_expense_category
-            # else:
-            #     product_account = False
-            #
-            # _logger.info(f"\nProduct Account: {product_account} \n-------------")
-
-            # account = product_account if product_account else line.account_id
-
+            if line.display_type not in ('product', 'line_section', 'line_note'):
+                continue
+            
             account = line.account_id
             account_name_to_check = account.name
             if account.substitute_account:
-                #     account_to_check = line.account_id.substitute_account.code
                 account_name_to_check = account.substitute_account.name
-
             if account_name_to_check:
                 account_id = self._map_account_name_to_remote_company(models, db, uid, password, company_id,
                                                                       account_name_to_check)
@@ -747,7 +744,6 @@ class AccountMove(models.Model):
                 tax_ids = []
                 
             product = self._get_remote_id_if_set(models, db, uid, password, 'product.product', 'name', line.product_id)
-            print("************************************************product_id", product)
 
             move_line_data = {
                 'product_id': product if product else False,  
@@ -758,20 +754,16 @@ class AccountMove(models.Model):
                 'quantity': line.quantity or None,
                 'price_unit': line.price_unit or None,
                 'tax_ids': [(4, tax) for tax in tax_ids] if tax_ids else None,
-                # Remote has more selections (5) or (6) compared to source(2) in display type of account.move.line
-                # Skipping raise an error as its a required compute field
                 'display_type': line.display_type if line.display_type in ['line_section', 'line_note'] else 'product',
 
             }
             move_lines.append((0, 0, move_line_data))
-        _logger.info(f"Move lines Update ******* {move_lines} ID {move.read(['name'])}")
 
         currency_id = self._get_remote_id_if_set(models, db, uid, password, 'res.currency', 'name', move.currency_id)
         # # Ensure partner exists in remote database
         if move.partner_id:
             partner = self._get_remote_id_if_set(models, db, uid, password, 'res.partner', 'name',
                                                  move.partner_id)
-            _logger.info(f"*************************** remote_partner_id Name {partner}")
 
             if not partner and move.partner_id:
                 # Create partner in remote database and update status
@@ -780,10 +772,6 @@ class AccountMove(models.Model):
                     move.partner_id.write({'sent_to_remote': True})
                 _logger.info(f"*************************** remote_partner_id Name (NEW) {remote_partner_id2}")
                 _logger.info(f"*************************** remote_partner_id Name (OLD) {partner}")
-
-            # partner_id2 = self._get_remote_id_if_set(models, db, uid, password, 'res.partner', 'name',
-            #                                          move.partner_id),
-            # # print(f"***************************partner_id {move.partner_id.name}, ,if created? {partner_id2}")
 
             move_data = {
                 'partner_id': self._get_remote_id_if_set(models, db, uid, password, 'res.partner', 'name',
@@ -802,9 +790,13 @@ class AccountMove(models.Model):
                 'currency_id': currency_id or None,
                 'journal_id': self._map_journal_to_remote_company(models, db, uid, password, move.journal_id) or None,
                 'invoice_line_ids': move_lines,
+                'line_ids': item_lines,
+                
             }
-            _logger.info(f"Moves Data -----------------------------------------\n {move_data}\n")
+            
         return move_data
+    
+    
 
     # def _map_account_invoice_to_remote_company(self, models, db, uid, password, move, account_code):
     #     """

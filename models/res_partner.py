@@ -13,7 +13,7 @@ class ResPartnerSync(models.Model):
     @api.model
     def action_send_partners_to_remote_cron(self):
         # Find all res.partner records that are not sent to remote
-        partners_to_send = self.search([('sent_to_remote', '=', False)], limit=10)
+        partners_to_send = self.search([('sent_to_remote', '=', False)], limit=1)
         for partner in partners_to_send:
             _logger.info("Processing partner: %s", partner.name)
             partner.send_partner_to_remote()

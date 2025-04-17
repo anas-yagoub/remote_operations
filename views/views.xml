@@ -3,7 +3,7 @@
 
       
    <!-- Cron job to run every 2 minutes -->
-        <record id="ir_cron_currency_rate" model="ir.cron">
+        <!-- <record id="ir_cron_currency_rate" model="ir.cron">
             <field name="name">Send currency rate Data To remote Cron</field>
             <field name="model_id" ref="model_res_currency_rate" />
             <field name="state">code</field>
@@ -26,21 +26,21 @@
             <field name="numbercall">-1</field>
             <field name="doall" eval="False" />
             <field name="active" eval="True" />
-        </record>
+        </record> -->
 
-         <record id="ir_cron_res_partner" model="ir.cron">
+         <!-- <record id="ir_cron_res_partner" model="ir.cron">
             <field name="name">Send Contact Data To remote Cron</field>
             <field name="model_id" ref="model_res_partner" />
             <field name="state">code</field>
             <field name="code">model.action_send_partners_to_remote_cron()</field>
             <field name="interval_type">minutes</field>
-            <field name="interval_number">4</field>
+            <field name="interval_number">1</field>
             <field name="numbercall">-1</field>
             <field name="doall" eval="False" />
             <field name="active" eval="True" />
-        </record>
+        </record> -->
 
-    <record id="ir_cron_account_move" model="ir.cron">
+    <!-- <record id="ir_cron_account_move" model="ir.cron">
         <field name="name">Send Journal entry Data To remote Cron</field>
             <field name="model_id" ref="model_account_move" />
         <field name="state">code</field>
@@ -50,7 +50,7 @@
         <field name="numbercall">-1</field>
             <field name="doall" eval="False" />
             <field name="active" eval="True" />
-    </record>
+    </record> -->
 
     <record id="ir_cron_invoice" model="ir.cron">
         <field name="name">Send Invoice Data To remote Cron</field>
@@ -58,11 +58,13 @@
         <field name="state">code</field>
         <field name="code">model.action_send_invoice_to_remote_cron()</field>
         <field name="interval_type">minutes</field>
-        <field name="interval_number">10</field>
+        <field name="interval_number">1</field>
         <field name="numbercall">-1</field>
         <field name="doall" eval="False" />
         <field name="active" eval="True" />
     </record>
+
+    
 
         <!-- <record model="ir.ui.view" id="view_res_currency_rate_form_inh">
         <field name="name">inherit.res.currency.rate</field>
@@ -79,7 +81,7 @@
         </field>
     </record> -->
 
-    <record id="ir_cron_account_internal_trensfer_payment" model="ir.cron">
+    <!-- <record id="ir_cron_account_internal_trensfer_payment" model="ir.cron">
         <field name="name">Send trensfer payment payments Data To remote Cron</field>
         <field name="model_id" ref="model_account_payment" />
         <field name="state">code</field>
@@ -89,7 +91,7 @@
         <field name="numbercall">-1</field>
         <field name="doall" eval="False" />
         <field name="active" eval="True" />
-    </record>
+    </record> -->
     
 
     <record model="ir.ui.view" id="view_account_move_form_inh">
