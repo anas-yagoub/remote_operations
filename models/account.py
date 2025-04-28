@@ -24,4 +24,22 @@ class AccountMove(models.Model):
     
     _inherit = 'account.move'
     
-    patient = fields.Char("Patient")    
+    patient = fields.Char("Patient")
+    matching_no = fields.Char(string='#Matching Number Custom')
+
+class AccountMoveLine(models.Model):
+    _inherit = 'account.move.line'
+
+    matching_no = fields.Char(string='#Matching Number Custom')
+
+
+class AccountBankStatementLines(models.Model):
+    _inherit = 'account.bank.statement'
+
+    matching_no = fields.Char(string='#Matching Number Custom')
+
+
+class AccountBankStatement(models.Model):
+    _inherit = 'account.bank.statement'
+
+    matching_no = fields.Char(string='#Matching Number Custom')
