@@ -26,11 +26,18 @@ class AccountMove(models.Model):
     
     patient = fields.Char("Patient")
     matching_no = fields.Char(string='#Matching Number Custom')
+    custom_move_id = fields.Many2one('account.move.custom', string="Custom Account Move", readonly=True)
+    custom_entry_id = fields.Many2one('move.entry.custom', string="Custom Move entry", readonly=True)
 
 class AccountMoveLine(models.Model):
     _inherit = 'account.move.line'
 
     matching_no = fields.Char(string='#Matching Number Custom')
+        
+    def _eligible_for_cogs(self):
+        self.ensure_one()
+        # return self.product_id.is_storable and self.product_id.valuation == 'real_time'
+        return False
 
 
 class AccountBankStatementLines(models.Model):
@@ -43,3 +50,22 @@ class AccountBankStatement(models.Model):
     _inherit = 'account.bank.statement'
 
     matching_no = fields.Char(string='#Matching Number Custom')
+
+    patient = fields.Char("Patient")    
+  
+    
+
+class AccountPayment(models.Model):
+    
+    _inherit = "account.payment"
+
+    payment_custom_id = fields.Many2one('account.payment.custom', string="Payment Custom" )
+    
+class AccountPayment(models.Model):
+    
+    _inherit = "account.bank.statement.line"
+
+    statement_custom_id = fields.Many2one('bank.statement.line.custom', string="Transfer Payment Custom" )
+    
+    
+    

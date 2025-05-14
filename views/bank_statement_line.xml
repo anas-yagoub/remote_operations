@@ -1,0 +1,78 @@
+<odoo>
+    <data>
+
+        <record id="view_bank_statement_line_custom_form" model="ir.ui.view">
+            <field name="name">bank.statement.line.custom.form.view</field>
+            <field name="model">bank.statement.line.custom</field>
+            <field name="arch" type="xml">
+                <form>
+                    <header>
+
+                        <button name="button_draft" type="object" data-hotkey="shift+g"
+                            string="Reset To Draft"
+                            class="oe_highlight" invisible="custom_state != 'rejected'" />
+
+                        <button name="button_rejected" type="object" data-hotkey="shift+g"
+                            string="Reject"
+                            class="oe_highlight" invisible="custom_state != 'draft'" />
+
+
+                        <button name="reconcile_internal_transfer_payment" type="object"
+                            data-hotkey="shift+g"
+                            string="Create Payment"
+                            class="oe_highlight" invisible="custom_state != 'draft'" />
+
+                        <field name="custom_state" widget="statusbar"
+                            statusbar_visible="draft,created" />
+                    </header>
+                    <sheet>
+                        <div class="oe_button_box" name="button_box">
+                            <button class="oe_stat_button" type="object"
+                                invisible="statement_count == 0"
+                                name="open_statements"
+                                icon="fa-money">
+                                <field string="Internal Transfer" name="statement_count"
+                                    widget="statinfo" />
+                            </button>
+                        </div>
+                        <group>
+                            <group>
+                                <field name="name" />
+                                <field name="payment_ref" />
+                                <field name="partner_id" />
+                                <field name="amount" />
+                                <field name="currency_id" />
+                                <field name="date" />
+                                <field name="payment_type" />
+                            </group>
+                            <group>
+                                <field name="ref" />
+                                <field name="journal_id" />
+                                <field name="destination_journal_id" />
+                                <field name="narration" />
+                                <field name="company_id" />
+                            </group>
+                        </group>
+                    </sheet>
+                    <chatter />
+                </form>
+            </field>
+        </record>
+
+        <record id="view_bank_statement_line_custom_tree" model="ir.ui.view">
+            <field name="name">bank.statement.line.custom.tree</field>
+            <field name="model">bank.statement.line.custom</field>
+            <field name="arch" type="xml">
+                <list>
+                    <field name="name" />
+                    <field name="date" />
+                    <field name="payment_ref" />
+                    <field name="partner_id" />
+                    <field name="amount" />
+                    <field name="payment_type" />
+                    <field name="company_id" />
+                </list>
+            </field>
+        </record>
+    </data>
+</odoo>

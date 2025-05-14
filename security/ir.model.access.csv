@@ -1,2 +1,11 @@
 id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
 access_db_connection,Database Connection,model_db_connection,base.group_system,1,1,1,1
+access_account_move_custom,account.move.custom,model_account_move_custom,,1,1,1,1
+access_account_move_custom_line,account.move.custom.line,model_account_move_custom_line,,1,1,1,1
+access_account_move_entry_line,account.move.entry.line,model_account_move_entry_line,,1,1,1,1
+access_account_payment_custom,account.payment.custom,model_account_payment_custom,,1,1,1,1
+access_move_entry_custom,move.entry.custom,model_move_entry_custom,,1,1,1,1
+access_move_entry_custom_line,move.entry.custom.line,model_move_entry_custom_line,,1,1,1,1
+access_bank_statement_line_custom,bank.statement.line.custom,model_bank_statement_line_custom,,1,1,1,1
+
+

@@ -1,0 +1,77 @@
+<odoo>
+    <data>
+
+        <record id="view_account_payment_custom_form" model="ir.ui.view">
+            <field name="name">account.payment.custom.form.view</field>
+            <field name="model">account.payment.custom</field>
+            <field name="arch" type="xml">
+                <form>
+                    <header> 
+                         <button name="button_draft" type="object" data-hotkey="shift+g"
+                            string="Reset To Draft"
+                            class="oe_highlight" invisible="custom_state != 'rejected'" />
+
+                        <button name="button_rejected" type="object" data-hotkey="shift+g"
+                            string="Reject"
+                            class="oe_highlight" invisible="custom_state != 'draft'" />
+
+                        <button name="action_create_payment" type="object"
+                            data-hotkey="shift+g"
+                            string="Create Payment"
+                            class="oe_highlight" invisible="custom_state != 'draft'" />
+                        
+                    <field name="custom_state" widget="statusbar"
+                            statusbar_visible="draft,created" />
+                    </header>
+                    <sheet>
+                        <div class="oe_button_box" name="button_box">
+                            <button class="oe_stat_button" type="object"
+                                invisible="payment_count == 0"
+                                name="open_payments"
+                                icon="fa-money">
+                            <field string="Payments" name="payment_count"
+                                    widget="statinfo" />
+                        </button>
+                        </div>
+                        <group>
+                            <group>
+                                <field name="name" />
+                                <field name="payment_type" />
+                                <field name="partner_id"  />
+                                <field name="amount" />
+                                <field name="currency_id" />
+                                <field name="date" />
+                                <field name="memo" />
+                                <field name="state" />
+                            </group>
+                            <group>
+                                <field name="journal_id" />
+                                <field name="payment_method_line_id" />
+                                <field name="state" />
+                                <field name="company_id" />
+                                <field name="payment_id" readonly="1" />
+                            </group>
+                        </group>
+                    </sheet>
+                    <chatter />
+                </form>
+            </field>
+        </record>
+
+        <record id="view_account_payment_custom_tree" model="ir.ui.view">
+            <field name="name">account.payment.custom.tree</field>
+            <field name="model">account.payment.custom</field>
+            <field name="arch" type="xml">
+                <list>
+                    <field name="name"/>
+                    <field name="partner_id" />
+                    <field name="journal_id" />
+                    <field name="amount" />
+                    <field name="company_id" />
+                    <field name="state" />
+                </list>
+            </field>
+        </record>
+
+    </data>
+</odoo>

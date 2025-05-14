@@ -1,0 +1,125 @@
+<odoo>
+    <data>
+
+        <record id="view_account_move_custom_form" model="ir.ui.view">
+            <field name="name">account.move.custom.form.view</field>
+            <field name="model">account.move.custom</field>
+            <field name="arch" type="xml">
+                <form>
+                    <header>
+
+                        <button name="button_draft" type="object" data-hotkey="shift+g"
+                            string="Reset To Draft"
+                            class="oe_highlight" invisible="custom_state != 'rejected'" />
+
+                        <button name="button_rejected" type="object" data-hotkey="shift+g"
+                            string="Reject"
+                            class="oe_highlight" invisible="custom_state != 'draft'" />
+                     
+                        
+                        <button name="create_account_move" type="object"
+                            data-hotkey="shift+g"
+                            string="Create Invoice/Bill" invisible="custom_state != 'draft'"
+                            class="oe_highlight" />
+                     
+                    <field name="custom_state" widget="statusbar"
+                            statusbar_visible="draft,created" />
+                    </header>
+                    <sheet>
+                        <div class="oe_button_box" name="button_box">
+                            <button class="oe_stat_button" type="object"
+                                invisible="move_count == 0"
+                                name="open_move"
+                                icon="fa-money">
+                                <field string="Invoice/bill" name="move_count"
+                                    widget="statinfo" />
+                            </button>
+                        </div>
+                        <group>
+                            <group>
+                                <field name="name" />
+                                <field name="partner_id"  />
+                                <field name="patient" />
+                                <field name="company_id" />
+                                <field name="narration" />
+                                <field name="move_type" />
+                                <field name="state" />
+                                <field name="payment_state" />
+                                <field name="invoice_origin" />
+                            </group>
+                            <group>
+                                <field name="invoice_date" />
+                                <field name="invoice_date_due"  />
+                                <field name="date" />
+                                <field name="journal_id" />
+                                <field name="invoice_payment_term_id" />
+                                <field name="currency_id" />
+                                <field name="payment_reference" />
+                                <field name="ref" />
+ 
+                            </group>
+                        </group>
+                        <notebook>
+                            <page name="invoice_line_ids" 
+                                string="Invoice Line">
+                                <field name="invoice_line_ids"  widget="one2many">
+                                    <list string="Invoice Line" editable="bottom">
+                                        <field name="product_id" />
+                                        <field name="name" />
+                                        <field name="account_id" />
+                                        <field name="analytic_distribution" widget="many2many_tags" />
+                                        <field name="quantity" />
+                                        <field name="product_uom_id"  />
+                                        <field name="price_unit" />
+                                        <field name="tax_ids" widget="many2many_tags"/>
+                                        <field name="price_subtotal" />
+                                    </list>
+                                </field> 
+                                <group class="oe_subtotal_footer" colspan="2">
+                                    <field name="amount_untaxed" colspan="2" readonly="1" />
+                                    <field name="amount_total" colspan="2" readonly="1" />
+                                    <field name="amount_residual" colspan="2" readonly="1" />
+                                    <field name="amount_paid" colspan="2" invisible="1" />
+                                    <field name="amount_tax" colspan="2" invisible="1" />
+                                
+                                </group>
+                            </page>
+                            <page name="line_ids"
+                                string="Journal Entries">
+                                <field name="line_ids" widget="one2many">
+                                    <list string="Journal Entries" editable="bottom">
+                                        <field name="account_id" />
+                                        <field name="partner_id" />
+                                        <field name="name" />
+                                        <field name="analytic_distribution" widget="many2many_tags" />
+                                        <field name="amount_currency"  />
+                                        <field name="debit" sum="Debit" />
+                                        <field name="credit" sum="Credit" />
+                                    </list>
+                                </field>
+                            </page>
+                        </notebook>
+
+                    </sheet>
+                    <chatter />
+
+                </form>
+            </field>
+        </record>
+
+        <record id="view_account_move_custom_tree" model="ir.ui.view">
+            <field name="name">account.move.custom.tree</field>
+            <field name="model">account.move.custom</field>
+            <field name="arch" type="xml">
+                <list>
+                    <field name="name"/>
+                    <field name="partner_id" />
+                    <field name="invoice_date" />
+                    <field name="journal_id" />
+                    <field name="company_id" />
+                </list>
+            </field>
+        </record>
+
+    </data>
+</odoo>
