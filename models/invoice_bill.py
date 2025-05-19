@@ -118,11 +118,16 @@ class AccountMoveCustom(models.Model):
                 'custom_state': 'created',
             })
             
-    def create_account_move(self):
+            
+ 
+    
+   
+    def create_bill_move(self):
         for rec in self:
-
-            invoice_line_vals = [
-                (0, 0, {
+            invoice_line_vals = []
+            # Prepare invoice lines
+            for inv_line in rec.invoice_line_ids:
+                invoice_line_vals.append((0, 0, {
                     'product_id': inv_line.product_id.id,
                     'account_id': inv_line.account_id.id,
                     'name': inv_line.name,
@@ -131,35 +136,12 @@ class AccountMoveCustom(models.Model):
                     'price_unit': inv_line.price_unit,
                     'discount': inv_line.discount,
                     'partner_id': inv_line.partner_id.id,
-                    'analytic_distribution': inv_line.analytic_distribution and {str(acc.id): 100 for acc in inv_line.analytic_distribution},
+                    'analytic_distribution': inv_line.analytic_distribution and {
+                        str(acc.id): 100 for acc in inv_line.analytic_distribution
+                    } or False,
                     'tax_ids': [(6, 0, inv_line.tax_ids.ids)],
-                    'display_type': 'product',  # Ensure valid selection value
-                }) for inv_line in rec.invoice_line_ids
-            ]
+                }))
 
-            # Prepare journal lines with duplication check
-            seen_lines = set()
-            journal_line_vals = [
-                (0, 0, {
-                    'account_id': mv_line.account_id.id,
-                    'name': mv_line.name,
-                    'amount_currency': mv_line.amount_currency,
-                    'debit': mv_line.debit,
-                    'credit': mv_line.credit,
-                    'partner_id': mv_line.partner_id.id,
-                    'analytic_distribution': mv_line.analytic_distribution and {str(acc.id): 100 for acc in mv_line.analytic_distribution},
-                    'tax_ids': [(6, 0, mv_line.tax_ids.ids)],
-                    'display_type': 'cogs',  # Replace 'cogs' with valid value
-                    'date_maturity': rec.invoice_date_due,
-                })
-                for mv_line in rec.line_ids
-                if (mv_line.account_id.id, mv_line.name) not in seen_lines
-                and not seen_lines.add((mv_line.account_id.id, mv_line.name))
-            ]
-            print("**************************************journal_line_vals", journal_line_vals)
-            print("**************************************seen_lines", seen_lines)
-
-            # Create journal entry
             move_vals = {
                 'partner_id': rec.partner_id.id,
                 'invoice_date': rec.invoice_date,
@@ -170,102 +152,87 @@ class AccountMoveCustom(models.Model):
                 'company_id': rec.company_id.id,
                 'ref': rec.ref,
                 'narration': rec.narration,
-                'move_type': 'entry',
+                'move_type': rec.move_type,
+                'custom_move_id': rec.id,
+                'invoice_line_ids': invoice_line_vals,  
+            }
+
+            move = self.env['account.move'].sudo().create(move_vals)
+            move.action_post()
+            rec.write({'account_move_id': move.id,
+                        'custom_state': 'created',})
+
+    
+    
+    def create_account_move(self):
+        for rec in self:
+            invoice_line_vals = []
+            journal_line_vals = []
+
+            # Separate invoice lines
+            for inv_line in rec.invoice_line_ids:
+                invoice_line_vals.append((0, 0, {
+                    'product_id': inv_line.product_id.id,
+                    'account_id': inv_line.account_id.id,
+                    'name': inv_line.name,
+                    'quantity': inv_line.quantity,
+                    'product_uom_id': inv_line.product_uom_id.id,
+                    'price_unit': inv_line.price_unit,
+                    'discount': inv_line.discount,
+                    'partner_id': inv_line.partner_id.id,
+                    'analytic_distribution': inv_line.analytic_distribution and {str(acc.id): 100 for acc in inv_line.analytic_distribution},
+                    'tax_ids': [(6, 0, inv_line.tax_ids.ids)],
+                    'display_type': 'product',
+                }))
+
+            # Separate journal lines and filter out receivable and income accounts
+            for mv_line in rec.line_ids:
+                account = self.env['account.account'].browse(mv_line.account_id.id)
+                account_type = account.account_type if account else ''
+                # Exclude receivable (asset_receivable) and income accounts
+                if account_type not in ['asset_receivable', 'income']:
+                    journal_line_vals.append((0, 0, {
+                        'account_id': mv_line.account_id.id,
+                        'name': mv_line.name,
+                        'amount_currency': mv_line.amount_currency,
+                        'debit': mv_line.debit,
+                        'credit': mv_line.credit,
+                        'partner_id': mv_line.partner_id.id,
+                        'analytic_distribution': mv_line.analytic_distribution and {str(acc.id): 100 for acc in mv_line.analytic_distribution},
+                        'tax_ids': [(6, 0, mv_line.tax_ids.ids)],
+                        'display_type': 'cogs',
+                    }))
+
+            # Step 1: Create move as journal entry
+            move_vals = {
+                'partner_id': rec.partner_id.id,
+                'invoice_date': rec.invoice_date,
+                'invoice_date_due': rec.invoice_date_due,
+                'date': rec.date,
+                'journal_id': rec.journal_id.id,
+                'currency_id': rec.currency_id.id,
+                'company_id': rec.company_id.id,
+                'ref': rec.ref,
+                'narration': rec.narration,
+                'move_type': rec.move_type,
                 'line_ids': [(5, 0, 0)] + journal_line_vals,
                 'custom_move_id': rec.id,
             }
             move = self.env['account.move'].sudo().create(move_vals)
+            move.action_post()
 
-            # Write invoice lines without triggering recomputation
+            # Step 2: Prevent recomputation
             move.with_context(skip_invoice_line_sync=True).sudo().write({
                 'invoice_line_ids': invoice_line_vals,
             })
 
-            # Update move type if needed
-            if rec.move_type != 'entry':
-                move.sudo().write({'move_type': rec.move_type})
+            # # Step 3 (Optional): Convert to invoice type if needed
+            # if rec.move_type != 'entry':
+            #     move.sudo().write({'move_type': rec.move_type})
 
-            # Link move to record
+            # Step 4: Save to your record
             rec.write({'account_move_id': move.id,
-                       'custom_state': 'created'})
-            # Clean up duplicate journal items safely
-            # seen_keys = set()
-            # to_unlink = []
-            # for line in move.line_ids:
-            #     key = (line.account_id.id, float(line.debit), float(line.credit), line.partner_id.id)
-            #     if key in seen_keys:
-            #         to_unlink.append(line.id)
-            #     else:
-            #         seen_keys.add(key)
-
-            # if to_unlink:
-            #     self.env['account.move.line'].sudo().browse(to_unlink).unlink()
-
-          
-
-    
-    # def create_account_move(self):
-    #     for rec in self:
-    #         invoice_line_vals = []
-    #         journal_line_vals = []
-
-    #         # Separate invoice lines
-    #         for inv_line in rec.invoice_line_ids:
-    #             invoice_line_vals.append((0, 0, {
-    #                 'product_id': inv_line.product_id.id,
-    #                 'account_id': inv_line.account_id.id,
-    #                 'name': inv_line.name,
-    #                 'quantity': inv_line.quantity,
-    #                 'product_uom_id': inv_line.product_uom_id.id,
-    #                 'price_unit': inv_line.price_unit,
-    #                 'discount': inv_line.discount,
-    #                 'partner_id': inv_line.partner_id.id,
-    #                 'analytic_distribution': inv_line.analytic_distribution and {str(acc.id): 100 for acc in inv_line.analytic_distribution},
-    #                 'tax_ids': [(6, 0, inv_line.tax_ids.ids)],
-    #                 'display_type': 'product',  # Adjust to valid selection value from the defined list
-    #             }))
-
-    #         # Separate journal lines
-    #         for mv_line in rec.line_ids:
-    #             journal_line_vals.append((0, 0, {
-    #                 'account_id': mv_line.account_id.id,
-    #                 'name': mv_line.name,
-    #                 'amount_currency': mv_line.amount_currency,
-    #                 'debit': mv_line.debit,
-    #                 'credit': mv_line.credit,
-    #                 'partner_id': mv_line.partner_id.id,
-    #                 'analytic_distribution': mv_line.analytic_distribution and {str(acc.id): 100 for acc in mv_line.analytic_distribution},
-    #                 'tax_ids': [(6, 0, mv_line.tax_ids.ids)],
-    #                 'display_type': 'cogs',  # Adjust to valid selection value from the defined list
-    #             }))
-
-    #         # Step 1: Create move as journal entry
-    #         move_vals = {
-    #             'partner_id': rec.partner_id.id,
-    #             'invoice_date': rec.invoice_date,
-    #             'invoice_date_due': rec.invoice_date_due,
-    #             'date': rec.date,
-    #             'journal_id': rec.journal_id.id,
-    #             'currency_id': rec.currency_id.id,
-    #             'company_id': rec.company_id.id,
-    #             'ref': rec.ref,
-    #             'narration': rec.narration,
-    #             'move_type': 'entry',  # important
-    #             'line_ids': [(5, 0, 0)] + journal_line_vals,
-    #         }
-    #         move = self.env['account.move'].sudo().create(move_vals)
-
-    #         # Step 2: Prevent recomputation
-    #         move.with_context(skip_invoice_line_sync=True).sudo().write({
-    #             'invoice_line_ids': invoice_line_vals,
-    #         })
-
-    #         # Step 3 (Optional): Convert to invoice type if needed
-    #         if rec.move_type != 'entry':
-    #             move.sudo().write({'move_type': rec.move_type})
-
-    #         # Step 4: Save to your record
-    #         rec.write({'account_move_id': move.id})
+                        'custom_state': 'created',})
 
         
 
@@ -305,6 +272,9 @@ class AccountMoveCustomLine(models.Model):
         string='Taxes'
     )
 
+
+
+
     
 
 class AccountMoveEntryLine(models.Model):
@@ -340,3 +310,6 @@ class AccountMoveEntryLine(models.Model):
         'tax_id', 
         string='Taxes'
     )
+    
+        
+ 

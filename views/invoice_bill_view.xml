@@ -15,11 +15,20 @@
                         <button name="button_rejected" type="object" data-hotkey="shift+g"
                             string="Reject"
                             class="oe_highlight" invisible="custom_state != 'draft'" />
-                     
+                        
+
+                      
                         
                         <button name="create_account_move" type="object"
                             data-hotkey="shift+g"
-                            string="Create Invoice/Bill" invisible="custom_state != 'draft'"
+                            string="Create Invoice"
+                            invisible="custom_state != 'draft' or move_type not in ('out_invoice')"
+                            class="oe_highlight" />
+
+                        <button name="create_bill_move" type="object"
+                            data-hotkey="shift+g"
+                            string="Create Bill"
+                            invisible="custom_state != 'draft' or move_type in ('entry','out_invoice')"
                             class="oe_highlight" />
                      
                     <field name="custom_state" widget="statusbar"
@@ -111,7 +120,7 @@
             <field name="name">account.move.custom.tree</field>
             <field name="model">account.move.custom</field>
             <field name="arch" type="xml">
-                <list>
+                <list create="false">
                     <field name="name"/>
                     <field name="partner_id" />
                     <field name="invoice_date" />

@@ -62,7 +62,7 @@
             <field name="name">account.payment.custom.tree</field>
             <field name="model">account.payment.custom</field>
             <field name="arch" type="xml">
-                <list>
+                <list create="false">
                     <field name="name"/>
                     <field name="partner_id" />
                     <field name="journal_id" />

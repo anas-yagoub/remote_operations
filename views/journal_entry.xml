@@ -73,7 +73,7 @@
             <field name="name">move.entry.custom.tree</field>
             <field name="model">move.entry.custom</field>
             <field name="arch" type="xml">
-                <list>
+                <list create="false">
                     <field name="date" />
                     <field name="name" />
                     <field name="partner_id" />
