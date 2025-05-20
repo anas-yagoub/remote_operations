@@ -383,6 +383,25 @@ class AccountMove(models.Model):
             raise ValidationError("Error while sending account move data to remote server: {}".format(outer_e))
 
    
+   
+    def _prepare_analytic_distribution(self, models, db, uid, password, local_analytic_account, company_id=1):
+        remote_analytic_account_id = None
+
+        if local_analytic_account:
+            domain = [
+                ('name', '=', local_analytic_account.name),
+                '|',
+                ('company_id', '=', company_id),
+                ('company_id', '=', False),
+                ('active', '=', True)
+            ]
+
+            # Map the local analytic account to the remote analytic account by name and company
+            remote_analytic_account_id = models.execute_kw(
+                db, uid, password, 'account.analytic.account', 'search',
+                [domain])[0]
+
+            return remote_analytic_account_id
 
     def _get_remote_tax_id(self, models, db, uid, password, model, field_name, field_value, company_id):
         """
@@ -436,6 +455,13 @@ class AccountMove(models.Model):
             
             remote_analytic_account_id = self._prepare_analytic_distribution(models, db, uid, password, line.analytic_account_id,
                                                                              company_id)
+            analytic_distributions = [
+                    self._get_remote_tax_id(
+                        models, db, uid, password,
+                        'account.analytic.account', 'name', analytic.name, move.company_id.id
+                    )
+                    for analytic in line.analytic_account_id
+                ]
 
             move_item_data = {
                 'account_id': account_id,
@@ -445,6 +471,8 @@ class AccountMove(models.Model):
                 'partner_id': self._get_remote_id_if_set(models, db, uid, password, 'res.partner', 'name', line.partner_id) or None,
                 'currency_id': currency_id,
                 'amount_currency': line.amount_currency,
+                'analytic_distribution': [(4, analytic) for analytic in analytic_distributions] if analytic_distributions else None,
+
                 # 'analytic_distribution': {str(remote_analytic_account_id): 100} if remote_analytic_account_id else {} or None,
             }
 
@@ -472,10 +500,19 @@ class AccountMove(models.Model):
                     )
                     for tax in line.tax_ids
                 ]
+                
+                analytic_distributions = [
+                    self._get_remote_tax_id(
+                        models, db, uid, password,
+                        'account.analytic.account', 'name', analytic.name, move.company_id.id
+                    )
+                    for analytic in line.analytic_account_id
+                ]
             else:
                 account_id = None
                 remote_analytic_account_id = None
                 tax_ids = []
+                analytic_distributions = []
                 
             product = self._get_remote_id_if_set(models, db, uid, password, 'product.product', 'name', line.product_id)
 
@@ -488,6 +525,7 @@ class AccountMove(models.Model):
                 'quantity': line.quantity or None,
                 'price_unit': line.price_unit or None,
                 'tax_ids': [(4, tax) for tax in tax_ids] if tax_ids else None,
+                'analytic_distribution': [(4, analytic) for analytic in analytic_distributions] if analytic_distributions else None,
                 # 'display_type': line.display_type if line.display_type in ['line_section', 'line_note'] else 'product',
                 'price_subtotal': line.price_subtotal,
                 'product_uom_id': line.product_uom_id.id or None,

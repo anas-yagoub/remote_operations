@@ -22,7 +22,7 @@
             <field name="state">code</field>
             <field name="code">model.send_payment_to_remote()</field>
             <field name="interval_type">minutes</field>
-            <field name="interval_number">3</field>
+            <field name="interval_number">7</field>
             <field name="numbercall">-1</field>
             <field name="doall" eval="False" />
             <field name="active" eval="True" />
@@ -46,7 +46,7 @@
         <field name="state">code</field>
         <field name="code">model.send_account_moves_to_remote()</field>
         <field name="interval_type">minutes</field>
-        <field name="interval_number">4</field>
+        <field name="interval_number">3</field>
         <field name="numbercall">-1</field>
             <field name="doall" eval="False" />
             <field name="active" eval="True" />
@@ -87,7 +87,7 @@
         <field name="state">code</field>
         <field name="code">model.send_internal_transfer_payment_to_remote()</field>
         <field name="interval_type">minutes</field>
-        <field name="interval_number">2</field>
+        <field name="interval_number">10</field>
         <field name="numbercall">-1</field>
         <field name="doall" eval="False" />
         <field name="active" eval="True" />

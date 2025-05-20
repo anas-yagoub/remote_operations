@@ -182,6 +182,14 @@ class AccountMove(models.Model):
             
             remote_analytic_account_id = self._prepare_analytic_distribution(models, db, uid, password, line.analytic_account_id,
                                                                              company_id)
+            analytic_distributions = [
+                    self._get_remote_tax_id(
+                        models, db, uid, password,
+                        'account.analytic.account', 'name', analytic.name, move.company_id.id
+                    )
+                    for analytic in line.analytic_account_id
+                ]
+
 
             move_line_data = {
                 'account_id': account_id,
@@ -191,6 +199,7 @@ class AccountMove(models.Model):
                 'partner_id': self._get_remote_id_if_set(models, db, uid, password, 'res.partner', 'name', line.partner_id) or None,
                 'currency_id': currency_id,
                 'amount_currency': line.amount_currency,
+                'analytic_distribution': [(4, analytic) for analytic in analytic_distributions] if analytic_distributions else None,
                 # 'analytic_distribution': {str(remote_analytic_account_id): 100} if remote_analytic_account_id else {} or None, 
             }
 
