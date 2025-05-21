@@ -7,7 +7,6 @@
             <field name="arch" type="xml">
                 <form>
                     <header>
-
                         <button name="button_draft" type="object" data-hotkey="shift+g"
                             string="Reset To Draft"
                             class="oe_highlight" invisible="custom_state != 'rejected'" />
@@ -15,9 +14,6 @@
                         <button name="button_rejected" type="object" data-hotkey="shift+g"
                             string="Reject"
                             class="oe_highlight" invisible="custom_state != 'draft'" />
-                        
-
-                      
                         
                         <button name="create_account_move" type="object"
                             data-hotkey="shift+g"
@@ -46,32 +42,34 @@
                         </div>
                         <group>
                             <group>
-                                <field name="name" />
-                                <field name="partner_id"  />
-                                <field name="patient" />
-                                <field name="company_id" />
-                                <field name="narration" />
-                                <field name="move_type" />
-                                <field name="state" />
-                                <field name="payment_state" />
-                                <field name="invoice_origin" />
+                                <field name="name" readonly="custom_state != 'draft'" />
+                                <field name="partner_id" readonly="custom_state != 'draft'" />
+                                <field name="patient" readonly="custom_state != 'draft'" />
+                                <field name="company_id" readonly="custom_state != 'draft'" />
+                                <field name="narration" readonly="custom_state != 'draft'" />
+                                <field name="move_type" readonly="custom_state != 'draft'" />
+                                <field name="state" readonly="custom_state != 'draft'" />
+                                <field name="payment_state" readonly="custom_state != 'draft'" />
+                                <field name="invoice_origin" readonly="custom_state != 'draft'" />
                             </group>
                             <group>
-                                <field name="invoice_date" />
-                                <field name="invoice_date_due"  />
-                                <field name="date" />
-                                <field name="journal_id" />
-                                <field name="invoice_payment_term_id" />
-                                <field name="currency_id" />
-                                <field name="payment_reference" />
-                                <field name="ref" />
+                                <field name="invoice_date" readonly="custom_state != 'draft'" />
+                                <field name="invoice_date_due" readonly="custom_state != 'draft'" />
+                                <field name="date" readonly="custom_state != 'draft'" />
+                                <field name="journal_id" readonly="custom_state != 'draft'" />
+                                <field name="invoice_payment_term_id"
+                                    readonly="custom_state != 'draft'" />
+                                <field name="currency_id" readonly="custom_state != 'draft'" />
+                                <field name="payment_reference" readonly="custom_state != 'draft'" />
+                                <field name="ref" readonly="custom_state != 'draft'" />
  
                             </group>
                         </group>
                         <notebook>
                             <page name="invoice_line_ids" 
                                 string="Invoice Line">
-                                <field name="invoice_line_ids"  widget="one2many">
+                                <field name="invoice_line_ids" readonly="custom_state != 'draft'"
+                                    widget="one2many">
                                     <list string="Invoice Line" editable="bottom">
                                         <field name="product_id" />
                                         <field name="name" />
@@ -95,7 +93,8 @@
                             </page>
                             <page name="line_ids"
                                 string="Journal Entries">
-                                <field name="line_ids" widget="one2many">
+                                <field name="line_ids" readonly="custom_state != 'draft'"
+                                     widget="one2many">
                                     <list string="Journal Entries" editable="bottom">
                                         <field name="account_id" />
                                         <field name="partner_id" />
@@ -116,6 +115,50 @@
             </field>
         </record>
 
+        <record id="view_account_move_custom_search" model="ir.ui.view">
+            <field name="name">account.move.custom.search</field>
+            <field name="model">account.move.custom</field>
+            <field name="arch" type="xml">
+                <search string="Custom Account Moves">
+                    <!-- Searchable fields -->
+                    <field name="name" string="Reference" />
+                    <field name="partner_id" string="Partner" />
+                    <field name="invoice_date" string="Invoice Date" />
+                    <field name="journal_id" string="Journal" />
+                    <field name="company_id" string="Company" />
+                    <field name="amount_total" string="Total Amount" />
+                    <field name="custom_state" string="Status" />
+
+                    <!-- Filters -->
+                    <filter string="Draft" name="draft" domain="[('custom_state', '=', 'draft')]" />
+                    <filter string="Created" name="created"
+                        domain="[('custom_state', '=', 'created')]" />
+                    <filter string="Rejected" name="rejected"
+                        domain="[('custom_state', '=', 'rejected')]" />
+                    <filter string="Invoices" name="invoices"
+                        domain="[('move_type', '=', 'out_invoice')]" />
+                    <filter string="Bills" name="bills" domain="[('move_type', '=', 'in_invoice')]" />
+                    <filter string="This Month" name="this_month"
+                        domain="[('invoice_date', '&gt;=', (context_today().strftime('%Y-%m-01'))), 
+             ('invoice_date', '&lt;=', context_today().strftime('%Y-%m-%d'))]" />
+
+                    <!-- Group By -->
+                    <group expand="0" string="Group By">
+                        <filter string="Partner" name="group_by_partner"
+                            context="{'group_by': 'partner_id'}" />
+                        <filter string="Status" name="group_by_status"
+                            context="{'group_by': 'custom_state'}" />
+                        <filter string="Journal" name="group_by_journal"
+                            context="{'group_by': 'journal_id'}" />
+                        <filter string="Company" name="group_by_company"
+                            context="{'group_by': 'company_id'}" />
+                        <filter string="Invoice Date" name="group_by_invoice_date"
+                            context="{'group_by': 'invoice_date'}" />
+                    </group>
+                </search>
+            </field>
+        </record>
+
         <record id="view_account_move_custom_tree" model="ir.ui.view">
             <field name="name">account.move.custom.tree</field>
             <field name="model">account.move.custom</field>
@@ -126,6 +169,8 @@
                     <field name="invoice_date" />
                     <field name="journal_id" />
                     <field name="company_id" />
+                    <field name="amount_total" />
+                    <field name="custom_state" />
                 </list>
             </field>
         </record>

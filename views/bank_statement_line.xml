@@ -37,25 +37,79 @@
                         </div>
                         <group>
                             <group>
-                                <field name="name" />
-                                <field name="payment_ref" />
-                                <field name="partner_id" />
-                                <field name="amount" />
-                                <field name="currency_id" />
-                                <field name="date" />
-                                <field name="payment_type" />
+                                <field name="name" readonly="custom_state != 'draft'" />
+                                <field name="payment_ref" readonly="custom_state != 'draft'" />
+                                <field name="partner_id" readonly="custom_state != 'draft'" />
+                                <field name="amount" readonly="custom_state != 'draft'" />
+                                <field name="currency_id" readonly="custom_state != 'draft'" />
+                                <field name="date" readonly="custom_state != 'draft'" />
+                                <field name="payment_type" readonly="custom_state != 'draft'" />
                             </group>
                             <group>
-                                <field name="ref" />
-                                <field name="journal_id" />
-                                <field name="destination_journal_id" />
-                                <field name="narration" />
-                                <field name="company_id" />
+                                <field name="ref" readonly="custom_state != 'draft'" />
+                                <field name="journal_id" readonly="custom_state != 'draft'" />
+                                <field name="destination_journal_id"
+                                    readonly="custom_state != 'draft'" />
+                                <field name="narration" readonly="custom_state != 'draft'" />
+                                <field name="company_id" readonly="custom_state != 'draft'" />
                             </group>
                         </group>
                     </sheet>
                     <chatter />
                 </form>
+            </field>
+        </record>
+
+        <record id="view_bank_statement_line_custom_search" model="ir.ui.view">
+            <field name="name">bank.statement.line.custom.search</field>
+            <field name="model">bank.statement.line.custom</field>
+            <field name="arch" type="xml">
+                <search string="Custom Bank Statement Lines">
+                    <!-- Searchable fields -->
+                    <field name="name" string="Reference" />
+                    <field name="payment_ref" string="Payment Reference" />
+                    <field name="partner_id" string="Partner" />
+                    <field name="amount" string="Amount" />
+                    <field name="currency_id" string="Currency" />
+                    <field name="date" string="Date" />
+                    <field name="payment_type" string="Payment Type" />
+                    <field name="ref" string="Internal Reference" />
+                    <field name="journal_id" string="Journal" />
+                    <field name="destination_journal_id" string="Destination Journal" />
+                    <field name="company_id" string="Company" />
+                    <field name="custom_state" string="Custom Status" />
+
+                    <!-- Filters -->
+                    <filter string="Draft" name="draft" domain="[('custom_state', '=', 'draft')]" />
+                    <filter string="Created" name="created"
+                        domain="[('custom_state', '=', 'created')]" />
+                    <filter string="Rejected" name="rejected"
+                        domain="[('custom_state', '=', 'rejected')]" />
+                    <filter string="Inbound Payments" name="inbound"
+                        domain="[('payment_type', '=', 'inbound')]" />
+                    <filter string="Outbound Payments" name="outbound"
+                        domain="[('payment_type', '=', 'outbound')]" />
+                    <filter string="This Month" name="this_month"
+                        domain="[('date', '&gt;=', (context_today().strftime('%Y-%m-01'))), 
+             ('date', '&lt;=', context_today().strftime('%Y-%m-%d'))]" />
+                
+                    <!-- Group By -->
+                    <group expand="0" string="Group By">
+                        <filter string="Partner" name="group_by_partner"
+                            context="{'group_by': 'partner_id'}" />
+                        <filter string="Custom Status" name="group_by_custom_state"
+                            context="{'group_by': 'custom_state'}" />
+                        <filter string="Payment Type" name="group_by_payment_type"
+                            context="{'group_by': 'payment_type'}" />
+                        <filter string="Journal" name="group_by_journal"
+                            context="{'group_by': 'journal_id'}" />
+                        <filter string="Destination Journal" name="group_by_destination_journal"
+                            context="{'group_by': 'destination_journal_id'}" />
+                        <filter string="Company" name="group_by_company"
+                            context="{'group_by': 'company_id'}" />
+                        <filter string="Date" name="group_by_date" context="{'group_by': 'date'}" />
+                    </group>
+                </search>
             </field>
         </record>
 
@@ -71,6 +125,7 @@
                     <field name="amount" />
                     <field name="payment_type" />
                     <field name="company_id" />
+                    <field name="custom_state" />
                 </list>
             </field>
         </record>

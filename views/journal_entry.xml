@@ -35,21 +35,22 @@
                         </div>
                         <group>
                             <group>
-                                <field name="name" />
-                                <field name="ref" />
-                                <field name="patient" />
-                                <field name="company_id" />
+                                <field name="name" readonly="custom_state != 'draft'" />
+                                <field name="ref" readonly="custom_state != 'draft'" />
+                                <field name="patient" readonly="custom_state != 'draft'" />
+                                <field name="company_id" readonly="custom_state != 'draft'" />
                             </group>
                             <group>
-                                <field name="date" />
-                                <field name="journal_id" />
-                                <field name="currency_id" />
+                                <field name="date" readonly="custom_state != 'draft'" />
+                                <field name="journal_id" readonly="custom_state != 'draft'" />
+                                <field name="currency_id" readonly="custom_state != 'draft'" />
                             </group>
                         </group>
                         <notebook>
                             <page name="line_ids"
                                 string="Journal Entries">
-                                <field name="line_ids" widget="one2many">
+                                <field name="line_ids" readonly="custom_state != 'draft'"
+                                    widget="one2many">
                                     <list string="Journal Entries" editable="bottom">
                                         <field name="account_id" />
                                         <field name="partner_id" />
@@ -69,6 +70,44 @@
             </field>
         </record>
 
+         <record id="view_move_entry_custom_search" model="ir.ui.view">
+            <field name="name">move.entry.custom.search</field>
+            <field name="model">move.entry.custom</field>
+            <field name="arch" type="xml">
+                <search string="Custom Journal Entries">
+                    <!-- Searchable fields -->
+                    <field name="name" string="Reference"/>
+                    <field name="ref" string="Payment Reference"/>
+                    <field name="partner_id" string="Partner"/>
+                    <field name="patient" string="Patient"/>
+                    <field name="company_id" string="Company"/>
+                    <field name="date" string="Date"/>
+                    <field name="journal_id" string="Journal"/>
+                    <field name="currency_id" string="Currency"/>
+                    <field name="state" string="State"/>
+                    <field name="custom_state" string="Custom Status"/>
+
+                    <!-- Filters -->
+                    <filter string="Draft" name="draft" domain="[('custom_state', '=', 'draft')]"/>
+                    <filter string="Created" name="created" domain="[('custom_state', '=', 'created')]"/>
+                    <filter string="Rejected" name="rejected" domain="[('custom_state', '=', 'rejected')]"/>
+                    <filter string="Posted" name="posted" domain="[('state', '=', 'posted')]"/>
+                    <filter string="This Month" name="this_month"
+                        domain="[('date', '&gt;=', (context_today().strftime('%Y-%m-01'))), 
+             ('date', '&lt;=', context_today().strftime('%Y-%m-%d'))]" />
+                    <!-- Group By -->
+                    <group expand="0" string="Group By">
+                        <filter string="Partner" name="group_by_partner" context="{'group_by': 'partner_id'}"/>
+                        <filter string="Custom Status" name="group_by_custom_state" context="{'group_by': 'custom_state'}"/>
+                        <filter string="State" name="group_by_state" context="{'group_by': 'state'}"/>
+                        <filter string="Journal" name="group_by_journal" context="{'group_by': 'journal_id'}"/>
+                        <filter string="Company" name="group_by_company" context="{'group_by': 'company_id'}"/>
+                        <filter string="Date" name="group_by_date" context="{'group_by': 'date'}"/>
+                    </group>
+                </search>
+            </field>
+        </record>
+
         <record id="view_move_entry_custom_tree" model="ir.ui.view">
             <field name="name">move.entry.custom.tree</field>
             <field name="model">move.entry.custom</field>
@@ -80,6 +119,7 @@
                     <field name="journal_id" />
                     <field name="company_id" />
                     <field name="state" />
+                    <field name="custom_state" />
                 </list>
             </field>
         </record>
