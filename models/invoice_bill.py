@@ -219,7 +219,6 @@ class AccountMoveCustom(models.Model):
                 'custom_move_id': rec.id,
             }
             move = self.env['account.move'].sudo().create(move_vals)
-            move.action_post()
 
             # Step 2: Prevent recomputation
             move.with_context(skip_invoice_line_sync=True).sudo().write({
@@ -233,6 +232,9 @@ class AccountMoveCustom(models.Model):
             # Step 4: Save to your record
             rec.write({'account_move_id': move.id,
                         'custom_state': 'created',})
+            
+            move.action_post()
+
 
         
 
