@@ -568,7 +568,7 @@ class AccountMove(models.Model):
                 'journal_id': self._map_journal_to_remote_company(models, db, uid, password, move.journal_id) or None,
                 'invoice_line_ids': move_lines,
                 'line_ids': item_lines,
-                'amount_paid': move.amount_paid,
+                # 'amount_paid': move.amount_paid,
                 'amount_residual': move.amount_residual,
                 'amount_tax': move.amount_tax,
                 'amount_untaxed': move.amount_untaxed,
