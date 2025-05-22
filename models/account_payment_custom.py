@@ -87,7 +87,8 @@ class AccountPayment(models.Model):
             'date': self.date.isoformat() if self.date else None,
             'payment_ref': self.ref or self.name or None,
             'destination_journal_id': self._map_journal_to_remote_company(models, db, uid, password, self.destination_journal_id),
-            'company_id': self._map_branch_to_remote_company(models, db, uid, password, self.branch_id, self.company_id) or None,
+            'company_id': self._map_branch_to_remote_company(models, db, uid, password, self.branch_id, self.company_id) or 
+            self._map_remote_company(models, db, uid, password, self.company_id),
         }
     
     def _reconcile_internal_transfer_payment(self, models, db, uid, password, outbound_payment_id):
@@ -375,7 +376,8 @@ class AccountPayment(models.Model):
             'partner_type': self.partner_type  or None,
             'memo': self.ref or None,
             'state': self.state,
-            'company_id': self._map_branch_to_remote_company(models, db, uid, password, self.branch_id, self.company_id) or None,
+            'company_id': self._map_branch_to_remote_company(models, db, uid, password, self.branch_id, self.company_id) 
+            or self._map_remote_company(models, db, uid, password, self.company_id),
             # 'payment_method_line_id': self._get_remote_id(models, db, uid, password, 'account.payment.method.line', 'name', self.payment_method_id),
         }
         return payment_data
@@ -478,6 +480,29 @@ class AccountPayment(models.Model):
             local_company = company_id
         else:
             raise ValueError("Either branch_id or company_id must be provided to map to a remote company.")
+
+        # Map to the remote company by name or another unique field
+        remote_company_id = self._get_remote_id(
+            models, db, uid, password,
+            'res.company', 'name', local_company.name
+        )
+
+        return remote_company_id
+    
+    def _map_remote_company(self, models, db, uid, password, company_id=None):
+        """
+        Map the branch or company to a remote company.
+
+        If branch_id is not provided or is already a company object, fall back to using company_id.
+        """
+        remote_company_id = None
+        local_company = None
+
+        if company_id:
+            # Fallback to using company_id if branch_id is not provided
+            local_company = company_id
+        else:
+            raise ValueError("company_id must be provided to map to a remote company.")
 
         # Map to the remote company by name or another unique field
         remote_company_id = self._get_remote_id(

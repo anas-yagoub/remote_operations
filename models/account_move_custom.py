@@ -554,8 +554,8 @@ class AccountMove(models.Model):
                 'partner_id': self._get_remote_id_if_set(models, db, uid, password, 'res.partner', 'name',
                                                  move.partner_id),
                 'patient': move.patient_id.name or None,
-                'company_id': self._map_branch_to_remote_company(models, db, uid, password, move.branch_id,
-                                                                 move.company_id) or None,
+                'company_id': self._map_branch_to_remote_company(models, db, uid, password, move.branch_id, move.company_id) or 
+                self._map_remote_company(models, db, uid, password, move.company_id),
                 'payment_reference': move.payment_reference or None,
                 'ref': move.ref or None,
                 'invoice_date': move.invoice_date or None,
@@ -600,6 +600,29 @@ class AccountMove(models.Model):
     #             move._update_remote_record()
     #         else: 
     #             move._update_invoice_remote_record()
+    
+    def _map_remote_company(self, models, db, uid, password, company_id=None):
+        """
+        Map the branch or company to a remote company.
+
+        If branch_id is not provided or is already a company object, fall back to using company_id.
+        """
+        remote_company_id = None
+        local_company = None
+
+        if company_id:
+            # Fallback to using company_id if branch_id is not provided
+            local_company = company_id
+        else:
+            raise ValueError("company_id must be provided to map to a remote company.")
+
+        # Map to the remote company by name or another unique field
+        remote_company_id = self._get_remote_id(
+            models, db, uid, password,
+            'res.company', 'name', local_company.name
+        )
+
+        return remote_company_id
     
     def _reset_cancel_remote_record(self):
         """Reset the corresponding record in the remote Odoo 18 database."""

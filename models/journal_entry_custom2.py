@@ -208,7 +208,9 @@ class AccountMove(models.Model):
         move_data = {
             'name': move.name,
             'patient': move.patient_id.name or None,
-            'company_id': self._map_branch_to_remote_company(models, db, uid, password, move.branch_id, move.company_id) or None,
+            
+            'company_id': self._map_branch_to_remote_company(models, db, uid, password, move.branch_id, move.company_id) or 
+               self._map_remote_company(models, db, uid, password, move.company_id),
             'ref': move.ref or None,
             'date': move.date or None,
             'move_type': move.move_type or None,
@@ -220,7 +222,29 @@ class AccountMove(models.Model):
 
 
         return move_data
+    
+    def _map_remote_company(self, models, db, uid, password, company_id=None):
+        """
+        Map the branch or company to a remote company.
 
+        If branch_id is not provided or is already a company object, fall back to using company_id.
+        """
+        remote_company_id = None
+        local_company = None
+
+        if company_id:
+            # Fallback to using company_id if branch_id is not provided
+            local_company = company_id
+        else:
+            raise ValueError("company_id must be provided to map to a remote company.")
+
+        # Map to the remote company by name or another unique field
+        remote_company_id = self._get_remote_id(
+            models, db, uid, password,
+            'res.company', 'name', local_company.name
+        )
+
+        return remote_company_id
 
     # def _prepare_analytic_distribution(self, models, db, uid, password, local_analytic_account_id):
     #     remote_analytic_account_id = None
