@@ -39,25 +39,25 @@ class AccountMoveLine(models.Model):
         # return self.product_id.is_storable and self.product_id.valuation == 'real_time'
         return False
     
-    # @api.model
-    # def create(self, vals):
-    #     if vals.get('move_id'):
-    #         move = self.env['account.move'].browse(vals['move_id'])
+    @api.model
+    def create(self, vals):
+        if vals.get('move_id'):
+            move = self.env['account.move'].browse(vals['move_id'])
 
-    #         if move.custom_move_id and move.move_type in ('out_invoice', 'in_invoice'):
-    #             custom_move_lines = move.custom_move_id.line_ids.filtered(
-    #                 lambda l: l.account_id.account_type == 'asset_receivable'
-    #             )
-    #             if custom_move_lines:
-    #                 receivable_account = custom_move_lines[0].account_id
+            if move.custom_move_id and move.move_type in ('out_invoice', 'in_invoice'):
+                custom_move_lines = move.custom_move_id.line_ids.filtered(
+                    lambda l: l.account_id.account_type == 'asset_receivable'
+                )
+                if custom_move_lines:
+                    receivable_account = custom_move_lines[0].account_id
 
-    #                 if vals.get('display_type') == 'payment_term':
-    #                     vals['account_id'] = receivable_account.id
+                    if vals.get('display_type') == 'payment_term':
+                        vals['account_id'] = receivable_account.id
 
-    #                     if not vals.get('date_maturity'):
-    #                         vals['date_maturity'] = move.invoice_date_due or move.invoice_date or fields.Date.today()
+                        if not vals.get('date_maturity'):
+                            vals['date_maturity'] = move.invoice_date_due or move.invoice_date or fields.Date.today()
 
-    #     return super().create(vals)
+        return super().create(vals)
     
 
 
