@@ -14,14 +14,32 @@
         </field>
     </record>
 
-    <record id="view_res_config_settings_inherit" model="ir.ui.view">
-        <field name="name">stacafe_remote_operations.res.config.settings.inherit</field>
-        <field name="model">res.config.settings</field>
-        <field name="priority" eval="50"/>
-        <field name="inherit_id" ref="base_setup.res_config_settings_view_form"/>
-        <field name="arch" type="xml">
-            <xpath expr="//div[@id='companies']" position="after">
-                <div class="app_settings_block" data-string="Stacafe Remote Settings" string="Stacafe Remote Settings" data-key="stacafe_remote_settings" id="stacafe_remote_settings">
+  <record model="ir.ui.view" id="view_account_move_list">
+      <field name="name">inherit.account.move</field>
+      <field name="model">account.move</field>
+      <field name="inherit_id" ref="account.view_invoice_tree"/>
+      <field name="arch" type="xml">
+          <data>
+              <xpath expr="//field[@name='invoice_partner_display_name']" position="after">
+                  <field name="patient" string="Patient Name"/>
+              </xpath>
+
+              <xpath expr="//field[@name='name']" position="attributes">
+                  <attribute name="string">Invoice No.</attribute>
+              </xpath>
+          </data>
+      </field>
+  </record>
+
+      <record id="view_res_config_settings_inherit" model="ir.ui.view">
+          <field name="name">stacafe_remote_operations.res.config.settings.inherit</field>
+          <field name="model">res.config.settings</field>
+          <field name="priority" eval="50"/>
+          <field name="inherit_id" ref="base_setup.res_config_settings_view_form"/>
+          <field name="arch" type="xml">
+              <xpath expr="//div[@id='companies']" position="after">
+                  <div class="app_settings_block" data-string="Stacafe Remote Settings" string="Stacafe Remote Settings"
+                       data-key="stacafe_remote_settings" id="stacafe_remote_settings">
                   <h2>Remote Settings</h2>
                   <div class="row mt16 o_settings_container" name="stacafe_remote_settings_container">
                     <div class="col-xs-12 col-md-6 o_setting_box" >
