@@ -306,6 +306,82 @@ class AccountMove(models.Model):
             return models.execute_kw(db, uid, password, 'res.partner', 'create', [partner_data])
             # return partner_data
 
+    # @api.model
+    # def action_send_invoice_to_remote_cron(self):
+    #     # Get configuration parameters
+    #     config_parameters = self.env['ir.config_parameter'].sudo()
+        
+    #     remote_type = config_parameters.get_param('remote_operations.remote_type')
+    #     if remote_type != 'Branch Database':
+    #         _logger.info("Database is not configured as 'Branch Database'. Skipping sending account moves to remote.")
+    #         return
+        
+    #     url = config_parameters.get_param('remote_operations.url')
+    #     db = config_parameters.get_param('remote_operations.db')
+    #     username = config_parameters.get_param('remote_operations.username')
+    #     password = config_parameters.get_param('remote_operations.password')
+        
+    #     # Validate settings
+    #     if not all([url, db, username, password]):
+    #         raise ValidationError("Remote server settings must be fully configured (URL, DB, Username, Password)")
+        
+    #     try:
+    #         # Create XML-RPC connection
+    #         common = xmlrpc.client.ServerProxy('{}/xmlrpc/2/common'.format(url), allow_none=True)
+    #         uid = common.authenticate(db, username, password, {})
+    #         models = xmlrpc.client.ServerProxy('{}/xmlrpc/2/object'.format(url), allow_none=True)
+            
+    #         start_date = date(2025, 5, 1).isoformat()
+    #         account_moves = self.sudo().search([
+    #             ('posted_to_remote', '=', False), 
+    #             ('state', '=', 'posted'),
+    #             ('move_type', '!=', 'entry'),
+    #             ('failed_to_sync', '=', False),
+    #             ('date', '>=', start_date),
+    #             ('no_allow_sync','=', False)
+    #         ], limit=5, order='date asc')
+            
+    #         _logger.info(f"Account Moves to Process: {account_moves.read(['name', 'posted_to_remote'])}")
+            
+    #         for move in account_moves:
+    #             try:
+    #                 # Skip moves linked to journals marked as "don't synchronize"
+    #                 if move.journal_id.dont_synchronize:
+    #                     continue
+                    
+    #                 # Prepare and send data to the remote server
+    #                 company_id = self._get_remote_id(models, db, uid, password, 'res.company', 'name', move.journal_id.company_id.name)
+    #                 _logger.info(f"Processing Move: {move.read(['name', 'company_id', 'partner_id'])}")
+                    
+    #                 move_data = self._prepare_invoice_data(models, db, uid, password, move, move.company_id.id)
+    #                 _logger.info("Prepared Move Data: %s", str(move_data))
+                    
+    #                 new_move = models.execute_kw(db, uid, password, 'account.move.custom', 'create', [move_data])
+    #                 _logger.info("Created Remote Move: %s", str(new_move))
+    #                 move.write({'posted_to_remote': True, 'remote_move_id': new_move})
+    #                 # Post the move remotely
+    #                 # models.execute_kw(db, uid, password, 'account.move.custom', 'action_post', [[new_move]])
+    #                 # _logger.info("Posted Remote Move: %s", str(new_move))
+    #                 # Mark move as posted to remote
+    #             except Exception as inner_e:
+    #                 # Log and mark move as failed
+    #                 move.write({'failed_to_sync': True})
+    #                 _logger.error("Error Processing Move ID %s: %s", move.id, str(inner_e))
+    #                 move.message_post(body="Error processing Move ID {}: {}".format(move.id, str(inner_e)))
+
+            
+    #         # Log summary of the process
+    #         successful_moves = account_moves.filtered(lambda m: m.posted_to_remote)
+    #         failed_moves = account_moves.filtered(lambda m: not m.posted_to_remote)
+            
+    #         _logger.info(f"Successfully Processed Moves: {len(successful_moves)}")
+    #         _logger.info(f"Failed to Process Moves: {len(failed_moves)}")
+        
+    #     except Exception as outer_e:
+    #         # Catch errors at the overall level
+    #         _logger.error("Error While Sending Account Moves to Remote Server: %s", str(outer_e))
+    #         raise ValidationError("Error while sending account move data to remote server: {}".format(outer_e))
+    
     @api.model
     def action_send_invoice_to_remote_cron(self):
         # Get configuration parameters
@@ -349,6 +425,13 @@ class AccountMove(models.Model):
                     if move.journal_id.dont_synchronize:
                         continue
                     
+                    # Check if move already exists in remote using remote_move_id
+                    if move.remote_move_id:
+                        existing_move_ids = models.execute_kw(db, uid, password, 'account.move.custom', 'search', [[('id', '=', move.remote_move_id)]])
+                        if existing_move_ids:
+                            _logger.info(f"Skipping Move ID {move.id}: Already exists in remote with ID {move.remote_move_id}")
+                            continue
+                    
                     # Prepare and send data to the remote server
                     company_id = self._get_remote_id(models, db, uid, password, 'res.company', 'name', move.journal_id.company_id.name)
                     _logger.info(f"Processing Move: {move.read(['name', 'company_id', 'partner_id'])}")
@@ -356,19 +439,20 @@ class AccountMove(models.Model):
                     move_data = self._prepare_invoice_data(models, db, uid, password, move, move.company_id.id)
                     _logger.info("Prepared Move Data: %s", str(move_data))
                     
+                    # Create new move
                     new_move = models.execute_kw(db, uid, password, 'account.move.custom', 'create', [move_data])
                     _logger.info("Created Remote Move: %s", str(new_move))
                     move.write({'posted_to_remote': True, 'remote_move_id': new_move})
+                    
                     # Post the move remotely
                     # models.execute_kw(db, uid, password, 'account.move.custom', 'action_post', [[new_move]])
                     # _logger.info("Posted Remote Move: %s", str(new_move))
-                    # Mark move as posted to remote
+                    
                 except Exception as inner_e:
                     # Log and mark move as failed
                     move.write({'failed_to_sync': True})
                     _logger.error("Error Processing Move ID %s: %s", move.id, str(inner_e))
                     move.message_post(body="Error processing Move ID {}: {}".format(move.id, str(inner_e)))
-
             
             # Log summary of the process
             successful_moves = account_moves.filtered(lambda m: m.posted_to_remote)
