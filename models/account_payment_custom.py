@@ -48,6 +48,7 @@ class AccountPaymentCustom(models.Model):
         ('posted','Posted'),
         ('canceled','Canceled'),
         ('rejected', 'Rejected'),
+        ('delete', 'Deleted'),
     ], string='Source State')
     
     def _compute_payment_count(self):

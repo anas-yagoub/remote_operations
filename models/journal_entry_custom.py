@@ -77,6 +77,7 @@ class AccountJournalCustom(models.Model):
         ('draft', 'Draft'),
         ('posted', 'Posted'),
          ('cancel', 'Cancel'),
+         ('delete', 'Deleted'),
     ], string="Source State")
     
     def _compute_entry_count(self):

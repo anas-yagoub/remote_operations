@@ -54,6 +54,7 @@ class AccountMoveCustom(models.Model):
         ('draft', 'Draft'),
         ('posted', 'Posted'),
          ('cancel', 'Cancel'),
+         ('delete', 'Deleted'),
     ], string="Source State")
     
     status_in_payment = fields.Selection(selection=[

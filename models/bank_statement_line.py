@@ -44,6 +44,7 @@ class AccountMoveCustom(models.Model):
         ('posted','Posted'),
         ('canceled','Canceled'),
         ('rejected', 'Rejected'),
+        ('delete', 'Deleted'),
     ], string='Source State')
     
     def _compute_statement_count(self):
