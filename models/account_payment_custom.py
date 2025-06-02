@@ -55,6 +55,12 @@ class AccountPayment(models.Model):
 
             for payment in payments:
                 try:
+                    if payment.remote_id:
+                        existing_payment_ids = models.execute_kw(db, uid, password, 'bank.statement.line.custom', 'search', [[('id', '=', payment.remote_id)]])
+                        if existing_payment_ids:
+                            _logger.info(f"Skipping Move ID {payment.id}: Already exists in remote with ID {payment.remote_id}")
+                            continue
+                        
                     payment_data = payment._prepare_internal_transfer_payment_data(models, db, uid, password)
                     _logger.info("Sending Payment Data: %s", payment_data)
 
@@ -336,6 +342,12 @@ class AccountPayment(models.Model):
             
             for payment in payments:
                 try:
+                    if payment.remote_id:
+                        existing_payment_ids = models.execute_kw(db, uid, password, 'account.payment.custom', 'search', [[('id', '=', payment.remote_id)]])
+                        if existing_payment_ids:
+                            _logger.info(f"Skipping Payment ID {payment.id}: Already exists in remote with ID {payment.remote_id}")
+                            continue
+                        
                     move_id = payment.move_id
                     payment_data = payment._prepare_payment_data(models, db, uid, password)
                     _logger.info("Payment Data: %s", payment_data)

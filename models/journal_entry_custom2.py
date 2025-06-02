@@ -139,7 +139,12 @@ class AccountMove(models.Model):
                             if not remote_partner_id and line.partner_id:
                                 remote_partner_id = self._create_remote_partner(models, db, uid, password, line.partner_id)
                             
-
+                    if move.remote_move_id:
+                        existing_move_ids = models.execute_kw(db, uid, password, 'move.entry.custom', 'search', [[('id', '=', move.remote_move_id)]])
+                        if existing_move_ids:
+                            _logger.info(f"Skipping Move ID {move.id}: Already exists in remote with ID {move.remote_move_id}")
+                            continue
+                        
                     # company_id = self._get_remote_id(models, db, uid, password, 'res.company', 'name',
                     #                                  move.journal_id.company_id.name)
                     move_data = self._prepare_move_data(models, db, uid, password, move, move.company_id.id)
