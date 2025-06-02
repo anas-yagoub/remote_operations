@@ -657,6 +657,7 @@ class AccountMove(models.Model):
                 'amount_tax': move.amount_tax,
                 'amount_untaxed': move.amount_untaxed,
                 'amount_total': move.amount_total,
+                'source_state': move.state,
             }
             _logger.info(f"**************************************** Invoice line ids {move_lines}")
 

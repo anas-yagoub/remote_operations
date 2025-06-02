@@ -223,6 +223,7 @@ class AccountMove(models.Model):
             'journal_id': self._map_journal_to_remote_company(models, db, uid, password, move.journal_id) or None,
             'line_ids': move_lines,
             'state': move.state,
+            'source_state': move.state,
         }
 
 

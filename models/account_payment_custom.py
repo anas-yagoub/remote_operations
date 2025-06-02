@@ -85,6 +85,7 @@ class AccountPayment(models.Model):
         currency_id = self._get_remote_id_if_set(models, db, uid, password, 'res.currency', 'name', self.currency_id)
         
         return {
+            'source_state': self.state,
             'name': self.name,
             'journal_id': self._map_journal_to_remote_company(models, db, uid, password, self.journal_id),
             'currency_id': currency_id or None,
@@ -378,6 +379,7 @@ class AccountPayment(models.Model):
         journal_id = self._get_remote_id(models, db, uid, password, 'account.journal', 'name', self.journal_id.name)
         currency_id = self._get_remote_id_if_set(models, db, uid, password, 'res.currency', 'name', self.currency_id)
         payment_data = {
+            'source_state': self.state,
             'name': self.name,
             'partner_id': partner_id,
             'journal_id': self._map_journal_to_remote_company(models, db, uid, password, self.journal_id),
