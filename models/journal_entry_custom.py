@@ -73,6 +73,11 @@ class AccountJournalCustom(models.Model):
     ], default="draft", string="Custom State")
     account_move_id = fields.Many2one('account.move', string="Related Account Move", readonly=True)
     entry_count = fields.Integer(string="journal Entry Count", compute="_compute_entry_count")
+    source_state = fields.Selection(selection=[
+        ('draft', 'Draft'),
+        ('posted', 'Posted'),
+         ('cancel', 'Cancel'),
+    ], string="Source State")
     
     def _compute_entry_count(self):
         obj = self.env['account.move']

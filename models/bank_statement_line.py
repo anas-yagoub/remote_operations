@@ -37,6 +37,14 @@ class AccountMoveCustom(models.Model):
     ], string="Payment Type")
     
     statement_count = fields.Integer(string="Statement Count", compute="_compute_statement_count")
+    source_state = fields.Selection([
+        ('draft', 'Draft'),
+        ('in_process','In Process'),
+        ('paid','Paid'),
+        ('posted','Posted'),
+        ('canceled','Canceled'),
+        ('rejected', 'Rejected'),
+    ], string='Source State')
     
     def _compute_statement_count(self):
         obj = self.env['account.bank.statement.line']

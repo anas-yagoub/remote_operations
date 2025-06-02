@@ -62,6 +62,7 @@
                                 <field name="currency_id" readonly="custom_state != 'draft'" />
                                 <field name="payment_reference" readonly="custom_state != 'draft'" />
                                 <field name="ref" readonly="custom_state != 'draft'" />
+                                <field name="source_state" readonly="1" />
  
                             </group>
                         </group>
@@ -144,6 +145,9 @@
 
                     <!-- Group By -->
                     <group expand="0" string="Group By">
+                        <filter string="Source State" name="group_by_source_state"
+                            context="{'group_by': 'source_state'}" />
+
                         <filter string="Partner" name="group_by_partner"
                             context="{'group_by': 'partner_id'}" />
                         <filter string="Status" name="group_by_status"
@@ -164,13 +168,15 @@
             <field name="model">account.move.custom</field>
             <field name="arch" type="xml">
                 <list create="false">
-                    <field name="name"/>
+                    <field name="name" />
                     <field name="partner_id" />
                     <field name="invoice_date" />
                     <field name="journal_id" />
                     <field name="company_id" />
                     <field name="amount_total" />
                     <field name="custom_state" />
+                    <field name="source_state"  />
+
                 </list>
             </field>
         </record>

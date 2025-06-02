@@ -51,6 +51,7 @@
                                 <field name="state" readonly="custom_state != 'draft'" />
                                 <field name="company_id" readonly="custom_state != 'draft'" />
                                 <field name="payment_id" readonly="1" />
+                                <field name="source_state" readonly="1" />
                             </group>
                         </group>
                     </sheet>
@@ -79,6 +80,7 @@
                     <field name="custom_state" string="Custom Status" />
 
                     <!-- Filters -->
+
                     <filter string="Draft" name="draft" domain="[('custom_state', '=', 'draft')]" />
                     <filter string="Created" name="created"
                         domain="[('custom_state', '=', 'created')]" />
@@ -93,10 +95,13 @@
                     <filter string="This Month" name="this_month"
                         domain="[('date', '&gt;=', (context_today().strftime('%Y-%m-01'))), 
              ('date', '&lt;=', context_today().strftime('%Y-%m-%d'))]" />
-                   
+
 
                     <!-- Group By -->
                     <group expand="0" string="Group By">
+                        <filter string="Source State" name="group_source_state"
+                            context="{'group_by': 'source_state'}" />
+
                         <filter string="Partner" name="group_by_partner"
                             context="{'group_by': 'partner_id'}" />
                         <filter string="Custom Status" name="group_by_custom_state"
@@ -121,13 +126,14 @@
             <field name="model">account.payment.custom</field>
             <field name="arch" type="xml">
                 <list create="false">
-                    <field name="name"/>
+                    <field name="name" />
                     <field name="partner_id" />
                     <field name="journal_id" />
                     <field name="amount" />
                     <field name="company_id" />
                     <field name="state" />
                     <field name="custom_state" />
+                    <field name="source_state" />
 
                 </list>
             </field>

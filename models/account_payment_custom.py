@@ -41,6 +41,14 @@ class AccountPaymentCustom(models.Model):
     payment_id = fields.Many2one('account.payment', string="Related Account Payment", readonly=True)
     company_id = fields.Many2one('res.company', string="Company")
     payment_count = fields.Integer(string="Payment Count", compute="_compute_payment_count")
+    source_state = fields.Selection([
+        ('draft', 'Draft'),
+        ('in_process','In Process'),
+        ('paid','Paid'),
+        ('posted','Posted'),
+        ('canceled','Canceled'),
+        ('rejected', 'Rejected'),
+    ], string='Source State')
     
     def _compute_payment_count(self):
         obj = self.env['account.payment']

@@ -50,6 +50,12 @@ class AccountMoveCustom(models.Model):
          ('cancel', 'Cancel'),
     ], string="Status")
     
+    source_state = fields.Selection(selection=[
+        ('draft', 'Draft'),
+        ('posted', 'Posted'),
+         ('cancel', 'Cancel'),
+    ], string="Source State")
+    
     status_in_payment = fields.Selection(selection=[
         ('not_paid', 'Not Paid'),
         ('in_payment', 'In Payment'),
