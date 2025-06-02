@@ -338,7 +338,7 @@ class AccountPayment(models.Model):
                 ('is_internal_transfer', '=', False),
                 ('date', '>=', start_date),
                 ('state', '=', 'posted'),
-                # ('remote_id', '=', 0)
+                ('payment_type', '=', 'outbound')
             ], limit=5, order='date asc')
             
             for payment in payments:
