@@ -78,7 +78,8 @@ class AccountJournalCustom(models.Model):
         ('posted', 'Posted'),
          ('cancel', 'Cancel'),
          ('delete', 'Deleted'),
-    ], string="Source State")
+         ('edit', 'edited'),
+    ], string="Source State", tracking=True)
     
     def _compute_entry_count(self):
         obj = self.env['account.move']

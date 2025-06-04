@@ -30,14 +30,14 @@ class AccountPaymentCustom(models.Model):
         ('posted','Posted'),
         ('canceled','Canceled'),
         ('rejected', 'Rejected'),
-    ], string='State')
+    ], string='State', tracking=True)
     payment_method_line_id = fields.Many2one('account.payment.method.line', string='Payment Method')
     custom_state = fields.Selection(selection=[
         ('draft', 'Draft'),
         ('created', 'Created'),
         ('rejected', 'Rejected'),
         ('cancel', 'Cancel'),
-    ], default="draft", string="Custom State")
+    ], default="draft", tracking=True, string="Custom State")
     payment_id = fields.Many2one('account.payment', string="Related Account Payment", readonly=True)
     company_id = fields.Many2one('res.company', string="Company")
     payment_count = fields.Integer(string="Payment Count", compute="_compute_payment_count")
@@ -49,7 +49,8 @@ class AccountPaymentCustom(models.Model):
         ('canceled','Canceled'),
         ('rejected', 'Rejected'),
         ('delete', 'Deleted'),
-    ], string='Source State')
+        ('edit', 'edited'),
+    ], string='Source State' , tracking=True)
     
     def _compute_payment_count(self):
         obj = self.env['account.payment']

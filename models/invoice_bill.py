@@ -55,7 +55,8 @@ class AccountMoveCustom(models.Model):
         ('posted', 'Posted'),
          ('cancel', 'Cancel'),
          ('delete', 'Deleted'),
-    ], string="Source State")
+         ('edit', 'edited'),
+    ], string="Source State", tracking=True)
     
     status_in_payment = fields.Selection(selection=[
         ('not_paid', 'Not Paid'),

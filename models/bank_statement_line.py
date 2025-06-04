@@ -45,7 +45,8 @@ class AccountMoveCustom(models.Model):
         ('canceled','Canceled'),
         ('rejected', 'Rejected'),
         ('delete', 'Deleted'),
-    ], string='Source State')
+        ('edit', 'edited'),
+    ], string='Source State', tracking=True)
     
     def _compute_statement_count(self):
         obj = self.env['account.bank.statement.line']
