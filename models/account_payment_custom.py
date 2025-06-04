@@ -19,6 +19,204 @@ class AccountPayment(models.Model):
     failed_to_sync = fields.Boolean("Failed To Sync", copy=False)
     remote_id = fields.Integer(string="Remote Id", copy=False)
     no_allow_sync = fields.Boolean("Not Allow Sync")
+    
+    def write(self, vals):
+        for move in self:
+            move._write_remote_record()
+        return super().write(vals)
+        
+    
+    def _write_remote_record(self):
+        """Reset the corresponding record in the remote Odoo 18 database."""
+        self.ensure_one()
+        if not self.remote_id:
+            return  # No remote record to reset
+
+        config_parameters = self.env['ir.config_parameter'].sudo()
+        url = config_parameters.get_param('remote_operations.url')
+        db = config_parameters.get_param('remote_operations.db')
+        username = config_parameters.get_param('remote_operations.username')
+        password = config_parameters.get_param('remote_operations.password')
+
+        if not all([url, db, username, password]):
+            _logger.error("Remote server settings are incomplete.")
+            return
+
+        try:
+            # Connect to the remote Odoo database
+            common = xmlrpc.client.ServerProxy('{}/xmlrpc/2/common'.format(url), allow_none=True)
+            uid = common.authenticate(db, username, password, {})
+            models = xmlrpc.client.ServerProxy('{}/xmlrpc/2/object'.format(url), allow_none=True)
+
+            # Reset the state of the remote record to draft
+            _logger.info("Resetting remote record ID %s to edit.", self.remote_id)
+            models.execute_kw(
+                db, uid, password, 
+                'account.payment.custom', 
+                'write', 
+                [[self.remote_id], {'source_state': 'edit'}]
+            )
+            
+            models.execute_kw(
+                db, uid, password, 
+                'bank.statement.line.custom', 
+                'write', 
+                [[self.remote_id], {'source_state': 'edit'}]
+            )
+            
+            _logger.info("Successfully reset remote record ID %s to edit.", self.remote_id)
+
+        except Exception as e:
+            _logger.error("Error resetting remote record ID %s to edit: %s", self.remote_id, str(e))
+    
+    
+    
+    def unlink(self):
+        for move in self:
+            move._delete_remote_record()
+        return super(AccountPayment, self).unlink()
+
+    
+    def _delete_remote_record(self):
+        """Reset the corresponding record in the remote Odoo 18 database."""
+        self.ensure_one()
+        if not self.remote_id:
+            return  # No remote record to reset
+
+        config_parameters = self.env['ir.config_parameter'].sudo()
+        url = config_parameters.get_param('remote_operations.url')
+        db = config_parameters.get_param('remote_operations.db')
+        username = config_parameters.get_param('remote_operations.username')
+        password = config_parameters.get_param('remote_operations.password')
+
+        if not all([url, db, username, password]):
+            _logger.error("Remote server settings are incomplete.")
+            return
+
+        try:
+            # Connect to the remote Odoo database
+            common = xmlrpc.client.ServerProxy('{}/xmlrpc/2/common'.format(url), allow_none=True)
+            uid = common.authenticate(db, username, password, {})
+            models = xmlrpc.client.ServerProxy('{}/xmlrpc/2/object'.format(url), allow_none=True)
+
+            # Reset the state of the remote record to draft
+            _logger.info("Resetting remote record ID %s to delete.", self.remote_id)
+            models.execute_kw(
+                db, uid, password, 
+                'account.payment.custom', 
+                'write', 
+                [[self.remote_id], {'source_state': 'delete'}]
+            )
+            
+            models.execute_kw(
+                db, uid, password, 
+                'bank.statement.line.custom', 
+                'write', 
+                [[self.remote_id], {'source_state': 'delete'}]
+            )
+            _logger.info("Successfully reset remote record ID %s to draft.", self.remote_id)
+
+        except Exception as e:
+            _logger.error("Error resetting remote record ID %s to draft: %s", self.remote_id, str(e))
+    
+    
+    def action_draft(self):
+        result = super(AccountPayment, self).action_draft()
+        for move in self:
+            move._reset_remote_record()
+        return result
+    
+    def _reset_remote_record(self):
+        """Reset the corresponding record in the remote Odoo 18 database."""
+        self.ensure_one()
+        if not self.remote_id:
+            return  # No remote record to reset
+
+        config_parameters = self.env['ir.config_parameter'].sudo()
+        url = config_parameters.get_param('remote_operations.url')
+        db = config_parameters.get_param('remote_operations.db')
+        username = config_parameters.get_param('remote_operations.username')
+        password = config_parameters.get_param('remote_operations.password')
+
+        if not all([url, db, username, password]):
+            _logger.error("Remote server settings are incomplete.")
+            return
+
+        try:
+            # Connect to the remote Odoo database
+            common = xmlrpc.client.ServerProxy('{}/xmlrpc/2/common'.format(url), allow_none=True)
+            uid = common.authenticate(db, username, password, {})
+            models = xmlrpc.client.ServerProxy('{}/xmlrpc/2/object'.format(url), allow_none=True)
+
+            # Reset the state of the remote record to draft
+            _logger.info("Resetting remote record ID %s to draft.", self.remote_id)
+            models.execute_kw(
+                db, uid, password, 
+                'account.payment.custom', 
+                'write', 
+                [[self.remote_id], {'source_state': 'draft'}]
+            )
+            
+            models.execute_kw(
+                db, uid, password, 
+                'bank.statement.line.custom', 
+                'write', 
+                [[self.remote_id], {'source_state': 'draft'}]
+            )
+            
+            _logger.info("Successfully reset remote record ID %s to draft.", self.remote_id)
+
+        except Exception as e:
+            _logger.error("Error resetting remote record ID %s to draft: %s", self.remote_id, str(e))
+    
+    # def action_cancel(self):
+    #     result = super(AccountPayment, self).action_cancel()
+    #     for move in self:
+    #         move._reset_cancel_remote_record()
+    #     return result
+    
+    def _reset_cancel_remote_record(self):
+        """Reset the corresponding record in the remote Odoo 18 database."""
+        self.ensure_one()
+        if not self.remote_id:
+            return  # No remote record to reset
+
+        config_parameters = self.env['ir.config_parameter'].sudo()
+        url = config_parameters.get_param('remote_operations.url')
+        db = config_parameters.get_param('remote_operations.db')
+        username = config_parameters.get_param('remote_operations.username')
+        password = config_parameters.get_param('remote_operations.password')
+
+        if not all([url, db, username, password]):
+            _logger.error("Remote server settings are incomplete.")
+            return
+
+        try:
+            # Connect to the remote Odoo database
+            common = xmlrpc.client.ServerProxy('{}/xmlrpc/2/common'.format(url), allow_none=True)
+            uid = common.authenticate(db, username, password, {})
+            models = xmlrpc.client.ServerProxy('{}/xmlrpc/2/object'.format(url), allow_none=True)
+
+            # Reset the state of the remote record to draft
+            _logger.info("Resetting remote record ID %s to cancel.", self.remote_id)
+            models.execute_kw(
+                db, uid, password, 
+                'account.payment.custom', 
+                'write', 
+                [[self.remote_id], {'source_state': 'cancel'}]
+            )
+            
+            models.execute_kw(
+                db, uid, password, 
+                'bank.statement.line.custom', 
+                'write', 
+                [[self.remote_id], {'source_state': 'cancel'}]
+            )
+            
+            _logger.info("Successfully reset remote record ID %s to cancel.", self.remote_id)
+
+        except Exception as e:
+            _logger.error("Error resetting remote record ID %s to cancel: %s", self.remote_id, str(e))
 
     
     @api.model
@@ -379,7 +577,7 @@ class AccountPayment(models.Model):
         journal_id = self._get_remote_id(models, db, uid, password, 'account.journal', 'name', self.journal_id.name)
         currency_id = self._get_remote_id_if_set(models, db, uid, password, 'res.currency', 'name', self.currency_id)
         payment_data = {
-            'source_state': self.state,
+            'source_state': 'posted',
             'name': self.name,
             'partner_id': partner_id,
             'journal_id': self._map_journal_to_remote_company(models, db, uid, password, self.journal_id),

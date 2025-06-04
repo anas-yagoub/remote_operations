@@ -21,8 +21,215 @@ class AccountMove(models.Model):
     failed_to_sync = fields.Boolean("Failed to Sync", default=False)
     remote_move_id = fields.Integer(string="Remote Move", copy=False)
     no_allow_sync = fields.Boolean("Not Allow Sync")
+    
+    def unlink(self):
+        for move in self:
+            move._delete_remote_record()
+        return super(AccountMove, self).unlink()
 
     
+    def _delete_remote_record(self):
+        """Reset the corresponding record in the remote Odoo 18 database."""
+        self.ensure_one()
+        if not self.remote_move_id:
+            return  # No remote record to reset
+
+        config_parameters = self.env['ir.config_parameter'].sudo()
+        url = config_parameters.get_param('remote_operations.url')
+        db = config_parameters.get_param('remote_operations.db')
+        username = config_parameters.get_param('remote_operations.username')
+        password = config_parameters.get_param('remote_operations.password')
+
+        if not all([url, db, username, password]):
+            _logger.error("Remote server settings are incomplete.")
+            return
+
+        try:
+            # Connect to the remote Odoo database
+            common = xmlrpc.client.ServerProxy('{}/xmlrpc/2/common'.format(url), allow_none=True)
+            uid = common.authenticate(db, username, password, {})
+            models = xmlrpc.client.ServerProxy('{}/xmlrpc/2/object'.format(url), allow_none=True)
+
+            # Reset the state of the remote record to draft
+            _logger.info("Resetting remote record ID %s to delete.", self.remote_move_id)
+            models.execute_kw(
+                db, uid, password, 
+                'account.move.custom', 
+                'write', 
+                [[self.remote_move_id], {'source_state': 'delete'}]
+            )
+            
+            models.execute_kw(
+                db, uid, password, 
+                'move.entry.custom', 
+                'write', 
+                [[self.remote_move_id], {'source_state': 'delete'}]
+            )
+            _logger.info("Successfully reset remote record ID %s to delete.", self.remote_move_id)
+
+        except Exception as e:
+            _logger.error("Error resetting remote record ID %s to delete: %s", self.remote_move_id, str(e))
+    
+    
+    def button_draft(self):
+        result = super(AccountMove, self).button_draft()
+        for move in self:
+            move._reset_remote_record()
+        return result
+    
+    
+    def _reset_remote_record(self):
+        """Reset the corresponding record in the remote Odoo 18 database."""
+        self.ensure_one()
+
+        config_parameters = self.env['ir.config_parameter'].sudo()
+        url = config_parameters.get_param('remote_operations.url')
+        db = config_parameters.get_param('remote_operations.db')
+        username = config_parameters.get_param('remote_operations.username')
+        password = config_parameters.get_param('remote_operations.password')
+
+        if not all([url, db, username, password]):
+            _logger.error("Remote server settings are incomplete.")
+            return
+
+        try:
+            common = xmlrpc.client.ServerProxy(f'{url}/xmlrpc/2/common', allow_none=True)
+            uid = common.authenticate(db, username, password, {})
+            models = xmlrpc.client.ServerProxy(f'{url}/xmlrpc/2/object', allow_none=True)
+
+            record_ids = []
+            # Try to use the remote_move_id if available
+            if self.remote_move_id:
+                _logger.info("Searching remote record with ID %s", self.remote_move_id)
+                record_ids = models.execute_kw(
+                    db, uid, password,
+                    'account.move.custom', 'search',
+                    [[['id', '=', self.remote_move_id]]]
+                )
+
+            print("**********************************************record_ids", record_ids)
+            if record_ids:
+                _logger.info("Resetting remote record(s) %s to draft", record_ids)
+                models.execute_kw(
+                    db, uid, password,
+                    'account.move.custom', 'write',
+                    [record_ids, {'source_state': 'draft'}]
+                )
+                
+                models.execute_kw(
+                    db, uid, password, 
+                    'move.entry.custom', 
+                    'write', 
+                    [record_ids, {'source_state': 'draft'}]
+                )
+                _logger.info("Successfully reset remote record(s) %s to draft", record_ids)
+            else:
+                _logger.error("Remote record not found using ID %s or origin %s", self.remote_move_id, self.name)
+
+        except Exception as e:
+            _logger.error("Error resetting remote record: %s", str(e))
+    
+    
+    def write(self, vals):
+        for move in self:
+            move._write_remote_record()
+        return super().write(vals)
+        
+    
+    def _write_remote_record(self):
+        """Reset the corresponding record in the remote Odoo 18 database."""
+        self.ensure_one()
+        if not self.remote_move_id:
+            return  # No remote record to reset
+
+        config_parameters = self.env['ir.config_parameter'].sudo()
+        url = config_parameters.get_param('remote_operations.url')
+        db = config_parameters.get_param('remote_operations.db')
+        username = config_parameters.get_param('remote_operations.username')
+        password = config_parameters.get_param('remote_operations.password')
+
+        if not all([url, db, username, password]):
+            _logger.error("Remote server settings are incomplete.")
+            return
+        try:
+            # Connect to the remote Odoo database
+            common = xmlrpc.client.ServerProxy('{}/xmlrpc/2/common'.format(url), allow_none=True)
+            uid = common.authenticate(db, username, password, {})
+            models = xmlrpc.client.ServerProxy('{}/xmlrpc/2/object'.format(url), allow_none=True)
+
+            # Reset the state of the remote record to draft
+            _logger.info("Resetting remote record ID %s to edit.", self.remote_move_id)
+            models.execute_kw(
+                db, uid, password, 
+                'account.move.custom', 
+                'write', 
+                [[self.remote_move_id], {'source_state': 'edit'}]
+            )
+            models.execute_kw(
+                db, uid, password, 
+                'move.entry.custom', 
+                'write', 
+                [[self.remote_move_id], {'source_state': 'edit'}]
+            )
+            _logger.info("Successfully reset remote record ID %s to edit.", self.remote_move_id)
+
+        except Exception as e:
+            _logger.error("Error resetting remote record ID %s to edit: %s", self.remote_move_id, str(e))
+    
+    
+    
+    
+    
+  
+
+    
+
+    
+    # def button_cancel(self):
+    #     result = super(AccountMove, self).button_cancel()
+    #     for move in self:
+    #         print("******************************************")
+    #         move._reset_cancel_remote_record()
+    #     return result
+    
+    # def _reset_cancel_remote_record(self):
+    #     """Reset the corresponding record in the remote Odoo 18 database to cancelled."""
+    #     self.ensure_one()
+    #     config_parameters = self.env['ir.config_parameter'].sudo()
+    #     url = config_parameters.get_param('remote_operations.url')
+    #     db = config_parameters.get_param('remote_operations.db')
+    #     username = config_parameters.get_param('remote_operations.username')
+    #     password = config_parameters.get_param('remote_operations.password')
+    #     if not all([url, db, username, password]):
+    #         _logger.error("Remote server settings are incomplete.")
+    #         return
+    #     try:
+    #         common = xmlrpc.client.ServerProxy(f'{url}/xmlrpc/2/common', allow_none=True)
+    #         uid = common.authenticate(db, username, password, {})
+    #         models = xmlrpc.client.ServerProxy(f'{url}/xmlrpc/2/object', allow_none=True)
+    #         record_ids = []
+    #         if self.remote_move_id:
+    #             _logger.info("Searching remote record with ID %s", self.remote_move_id)
+    #             record_ids = models.execute_kw(
+    #                 db, uid, password,
+    #                 'account.move.custom', 'search',
+    #                 [[['id', '=', self.remote_move_id]]]
+    #             )
+    #         if record_ids:
+    #             _logger.info("Resetting remote record(s) %s to cancel", record_ids)
+    #             models.execute_kw(
+    #                 db, uid, password,
+    #                 'account.move.custom', 'write',
+    #                 [record_ids, {'source_state': 'cancel'}]
+    #             )
+    #             _logger.info("Successfully reset remote record(s) %s to cancel", record_ids)
+    #         else:
+    #             _logger.error("Remote record not found using ID %s or origin %s", self.remote_move_id, self.name)
+    #     except Exception as e:
+    #         _logger.error("Error resetting remote record: %s", str(e))
+
+
+        
     def action_sync_to_remote_manual(self):
         """ Manually sync selected account moves to a remote Odoo server """
         config_parameters = self.env['ir.config_parameter'].sudo()
@@ -744,44 +951,7 @@ class AccountMove(models.Model):
 
         except Exception as e:
             _logger.error("Error resetting remote record ID %s to cancel: %s", self.remote_move_id, str(e))
-        
-
-
-    def _reset_remote_record(self):
-        """Reset the corresponding record in the remote Odoo 18 database."""
-        self.ensure_one()
-        if not self.remote_move_id:
-            return  # No remote record to reset
-
-        config_parameters = self.env['ir.config_parameter'].sudo()
-        url = config_parameters.get_param('remote_operations.url')
-        db = config_parameters.get_param('remote_operations.db')
-        username = config_parameters.get_param('remote_operations.username')
-        password = config_parameters.get_param('remote_operations.password')
-
-        if not all([url, db, username, password]):
-            _logger.error("Remote server settings are incomplete.")
-            return
-
-        try:
-            # Connect to the remote Odoo database
-            common = xmlrpc.client.ServerProxy('{}/xmlrpc/2/common'.format(url), allow_none=True)
-            uid = common.authenticate(db, username, password, {})
-            models = xmlrpc.client.ServerProxy('{}/xmlrpc/2/object'.format(url), allow_none=True)
-
-            # Reset the state of the remote record to draft
-            _logger.info("Resetting remote record ID %s to draft.", self.remote_move_id)
-            models.execute_kw(
-                db, uid, password, 
-                'account.move', 
-                'write', 
-                [[self.remote_move_id], {'state': 'draft'}]
-            )
-            _logger.info("Successfully reset remote record ID %s to draft.", self.remote_move_id)
-
-        except Exception as e:
-            _logger.error("Error resetting remote record ID %s to draft: %s", self.remote_move_id, str(e))
-            
+                    
       
     
     def _update_remote_record(self):
