@@ -130,10 +130,10 @@ class AccountMove(models.Model):
             _logger.error("Error resetting remote record: %s", str(e))
     
     
-    def write(self, vals):
-        for move in self:
-            move._write_remote_record()
-        return super().write(vals)
+    # def write(self, vals):
+    #     for move in self:
+    #         move._write_remote_record()
+    #     return super().write(vals)
         
     
     def _write_remote_record(self):

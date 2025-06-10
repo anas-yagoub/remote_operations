@@ -20,10 +20,10 @@ class AccountPayment(models.Model):
     remote_id = fields.Integer(string="Remote Id", copy=False)
     no_allow_sync = fields.Boolean("Not Allow Sync")
     
-    def write(self, vals):
-        for move in self:
-            move._write_remote_record()
-        return super().write(vals)
+    # def write(self, vals):
+    #     for move in self:
+    #         move._write_remote_record()
+    #     return super().write(vals)
         
     
     def _write_remote_record(self):
