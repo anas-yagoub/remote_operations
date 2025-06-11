@@ -127,7 +127,6 @@ class AccountMoveCustom(models.Model):
             })
             
             
- 
     
    
     def create_bill_move(self):
