@@ -614,12 +614,12 @@ class AccountMove(models.Model):
             uid = common.authenticate(db, username, password, {})
             models = xmlrpc.client.ServerProxy('{}/xmlrpc/2/object'.format(url), allow_none=True)
             
-            start_date = date(2025, 5, 1).isoformat()
+            start_date = date(2025, 6, 1).isoformat()
             account_moves = self.sudo().search([
                 ('posted_to_remote', '=', False), 
                 ('state', '=', 'posted'),
-                # ('move_type', '!=', 'entry'),
-                ('move_type', 'not in', ['entry','out_invoice']),
+                ('move_type', '!=', 'entry'),
+                # ('move_type', 'not in', ['entry','out_invoice']),
                 ('failed_to_sync', '=', False),
                 ('date', '>=', start_date),
                 ('no_allow_sync','=', False)

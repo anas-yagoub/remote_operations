@@ -264,7 +264,7 @@ class AccountMoveEntry(models.Model):
             start_date = date(2025,5,1).isoformat()
             # account_moves = self.search([('posted_to_remote', '=', False),('move_type', '=', 'entry')], limit=10)
             account_moves = self.sudo().search([('posted_to_remote', '=', False), \
-                                                ('state', '=', 'posted'), ('move_type', '=', 'entry'), ('journal_id.type', '=', 'general') ,('failed_to_sync', '=', False),('date', '>=', start_date),('no_allow_sync','=', False)], limit=1,
+                                                ('state', '=', 'posted'), ('move_type', '=', 'entry'), ('journal_id.type', '=', 'general') ,('failed_to_sync', '=', False),('date', '>=', start_date),('no_allow_sync','=', False)], limit=10,
                                                order='date asc')
            
         
