@@ -623,7 +623,7 @@ class AccountMove(models.Model):
                 ('failed_to_sync', '=', False),
                 ('date', '>=', start_date),
                 ('no_allow_sync','=', False)
-            ], limit=5, order='date asc')
+            ], limit=1, order='date asc')
             
             _logger.info(f"Account Moves to Process: {account_moves.read(['name', 'posted_to_remote'])}")
             
