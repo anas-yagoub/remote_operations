@@ -162,6 +162,7 @@ class AccountMoveCustom(models.Model):
                 'move_type': rec.move_type,
                 'custom_move_id': rec.id,
                 'invoice_line_ids': invoice_line_vals,  
+                'patient': rec.patient,
             }
 
             move = self.env['account.move'].sudo().create(move_vals)
@@ -224,6 +225,7 @@ class AccountMoveCustom(models.Model):
                 'move_type': rec.move_type,
                 'line_ids': [(5, 0, 0)] + journal_line_vals,
                 'custom_move_id': rec.id,
+                'patient': rec.patient,
             }
             move = self.env['account.move'].sudo().create(move_vals)
 
