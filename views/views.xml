@@ -9,7 +9,8 @@
             <data>
                 <xpath expr="//group/group" position="inside">
                     <field name="patient" />
-                </xpath>
+                    <field name="sync_move" readonly="1"/>
+                    </xpath>
             </data>
         </field>
     </record>

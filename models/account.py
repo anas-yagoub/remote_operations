@@ -28,6 +28,7 @@ class AccountMove(models.Model):
     matching_no = fields.Char(string='#Matching Number Custom')
     custom_move_id = fields.Many2one('account.move.custom', string="Custom Account Move", readonly=True)
     custom_entry_id = fields.Many2one('move.entry.custom', string="Custom Move entry", readonly=True)
+    sync_move = fields.Char("Sync Move")
 
 class AccountMoveLine(models.Model):
     _inherit = 'account.move.line'

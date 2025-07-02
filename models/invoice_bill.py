@@ -85,8 +85,9 @@ class AccountMoveCustom(models.Model):
         ('draft', 'Draft'),
         ('created', 'Created'),
         ('rejected', 'Rejected'),
+        ('duplicated', 'Duplicated'),
         ('cancel', 'Cancel'),
-    ], default="draft", string="Custom State")
+    ], default="draft", tracking=True, string="Custom State")
     account_move_id = fields.Many2one('account.move', string="Related Account Move", readonly=True)
     
     move_count = fields.Integer(string="Move Count", compute="_compute_move_count")
@@ -163,6 +164,7 @@ class AccountMoveCustom(models.Model):
                 'custom_move_id': rec.id,
                 'invoice_line_ids': invoice_line_vals,  
                 'patient': rec.patient,
+                'sync_move': rec.name,
             }
 
             move = self.env['account.move'].sudo().create(move_vals)
@@ -174,6 +176,16 @@ class AccountMoveCustom(models.Model):
     
     def create_account_move(self):
         for rec in self:
+                    # Check if move with sync_move == rec.name already exists
+            existing_move = self.env['account.move'].sudo().search([('sync_move', '=', rec.name)], limit=1)
+            if existing_move:
+                # Move already exists; skip creation or update rec if needed
+                rec.write({
+                    'account_move_id': existing_move.id,
+                    'custom_state': 'duplicated',
+                })
+                continue
+            
             invoice_line_vals = []
             journal_line_vals = []
 
@@ -226,6 +238,7 @@ class AccountMoveCustom(models.Model):
                 'line_ids': [(5, 0, 0)] + journal_line_vals,
                 'custom_move_id': rec.id,
                 'patient': rec.patient,
+                'sync_move': rec.name,
             }
             move = self.env['account.move'].sudo().create(move_vals)
 
