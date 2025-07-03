@@ -100,12 +100,11 @@
             <field name="inherit_id" ref="account.view_move_form" />
         <field name="arch" type="xml">
             <data>
-                    <!-- <xpath expr="//header" position="inside">
-                        <button name="send_account_moves_to_remote" string="Sent To remote"
+                    <xpath expr="//header" position="inside">
+                        <button name="update_company_record" string="Update Company"
                             class="oe_highlight" type="object"
-                            
-                            attrs="{'invisible': [('move_type', '!=', 'entry')]}" />
-                </xpath> -->
+                            invisible="1" />
+                </xpath>
                 <xpath expr="//group/group" position="inside">
                         <field name="posted_to_remote" invisible="0" readonly="1" />
                         <field name="failed_to_sync" invisible="0" readonly="1" />

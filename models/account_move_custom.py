@@ -344,10 +344,13 @@ class AccountMove(models.Model):
             # else:
                 # branch_id is already a res.company object
             local_company = branch_id
+            print("***************************************local_company", local_company)
                 # print("*****************local_company directly from branch as company", local_company.name)
         elif company_id:
             # Fallback to using company_id if branch_id is not provided
             local_company = company_id
+            print("***************************************local_company222222222", local_company)
+
             # print("*****************local_company from company_id", local_company.name)
         else:
             raise ValueError("Either branch_id or company_id must be provided to map to a remote company.")
@@ -1129,8 +1132,58 @@ class AccountMove(models.Model):
                 
             
 
+    def update_company_record(self):
+        """Update only the company_id of the corresponding record in the remote Odoo 18 database."""
+        self.ensure_one()
+        if not self.remote_move_id:
+            return  # No remote record to update
+
+        # Fetch remote configuration parameters
+        config_parameters = self.env['ir.config_parameter'].sudo()
+        url = config_parameters.get_param('remote_operations.url')
+        db = config_parameters.get_param('remote_operations.db')
+        username = config_parameters.get_param('remote_operations.username')
+        password = config_parameters.get_param('remote_operations.password')
+
+        if not all([url, db, username, password]):
+            _logger.error("Remote server settings are incomplete.")
+            return
+
+        try:
+            # Connect to the remote Odoo database
+            common = xmlrpc.client.ServerProxy(f'{url}/xmlrpc/2/common', allow_none=True)
+            uid = common.authenticate(db, username, password, {})
+            models = xmlrpc.client.ServerProxy(f'{url}/xmlrpc/2/object', allow_none=True)
+
+            # Map company_id (FIXED: no tuple)
+            remote_company_id = (
+                self._map_branch_to_remote_company(models, db, uid, password, self.branch_id, self.company_id)
+                or self._map_remote_company(models, db, uid, password, self.company_id)
+            )
+
+            if not remote_company_id:
+                _logger.error("Could not map local company to remote company.")
+                return
+
+            # Prepare data to update
+            update_data = {
+                'company_id': remote_company_id,
+            }
+            _logger.info("Updating remote record ID %s with data: %s", self.remote_move_id, update_data)
+
+            # Update the remote record
+            models.execute_kw(
+                db, uid, password,
+                'account.move.custom',  # Make sure this model name is correct
+                'write',
+                [[self.remote_move_id], update_data]
+            )
+            _logger.info("Successfully updated remote record ID %s with new company_id.", self.remote_move_id)
+
+        except Exception as e:
+            _logger.error("Error updating remote record ID %s: %s", self.remote_move_id, str(e))
+            self.message_post(body="Error updating Move ID {}: {}".format(self.remote_move_id, str(e)))
 
 
-
+                        
                     
-                
