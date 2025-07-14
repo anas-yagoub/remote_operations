@@ -210,7 +210,7 @@ class AccountMoveCustom(models.Model):
                 account = self.env['account.account'].browse(mv_line.account_id.id)
                 account_type = account.account_type if account else ''
                 # Exclude receivable (asset_receivable) and income accounts
-                if account_type not in ['asset_receivable', 'income']:
+                if account_type not in ['asset_receivable', 'income','asset_current']:
                     journal_line_vals.append((0, 0, {
                         'account_id': mv_line.account_id.id,
                         'name': mv_line.name,

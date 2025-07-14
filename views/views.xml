@@ -1,6 +1,17 @@
 <odoo>
   <data>
 
+    <record id="view_account_move_search_inherit" model="ir.ui.view">
+        <field name="name">account.move.search.inherit</field>
+        <field name="model">account.move</field>
+        <field name="inherit_id" ref="account.view_account_invoice_filter" />
+        <field name="arch" type="xml">
+            <xpath expr="//search" position="inside">
+                <field name="sync_move" />
+            </xpath>
+        </field>
+    </record>
+
     <record model="ir.ui.view" id="view_account_move_form_inh">
         <field name="name">inherit.account.move</field>
         <field name="model">account.move</field>
@@ -10,7 +21,7 @@
                 <xpath expr="//group/group" position="inside">
                     <field name="patient" />
                     <field name="sync_move" readonly="1"/>
-                    </xpath>
+                </xpath>
             </data>
         </field>
     </record>
@@ -147,7 +158,7 @@
         </field>
 	</record>
 
-    <!-- <record model="ir.ui.view" id="view_stock_location_inherit_form6">
+        <!-- <record model="ir.ui.view" id="view_stock_location_inherit_form6">
         <field name="name">inherit.stock.location</field>
         <field name="model">stock.location</field>
         <field name="inherit_id" ref="stock.view_location_form"/>
@@ -203,7 +214,7 @@
         </field>
     </record>
 
-    <!-- <record model="ir.ui.view" id="view_item_requisition_inherit_list">
+        <!-- <record model="ir.ui.view" id="view_item_requisition_inherit_list">
         <field name="name">inherit.item.requisition1</field>
         <field name="model">item.requisition</field>
         <field name="inherit_id" ref="requisitions.item_requisition_list"/>
@@ -252,7 +263,7 @@
 	</record> -->
 
         <!-- list View -->
-    <!-- <record id="view_custom_stock_quant_list" model="ir.ui.view">
+        <!-- <record id="view_custom_stock_quant_list" model="ir.ui.view">
         <field name="name">custom.stock.quant.list</field>
         <field name="model">custom.stock.quant</field>
         <field name="arch" type="xml">
@@ -270,7 +281,7 @@
     </record> -->
 
         <!-- Form View -->
-    <!-- <record id="view_custom_stock_quant_form" model="ir.ui.view">
+        <!-- <record id="view_custom_stock_quant_form" model="ir.ui.view">
         <field name="name">custom.stock.quant.form</field>
         <field name="model">custom.stock.quant</field>
         <field name="arch" type="xml">

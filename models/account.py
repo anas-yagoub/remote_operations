@@ -52,6 +52,17 @@ class AccountMoveLine(models.Model):
                 custom_move_payble = move.custom_move_id.line_ids.filtered(
                     lambda l: l.account_id.account_type == 'liability_payable'
                 )
+                custom_asset_current = move.custom_move_id.line_ids.filtered(
+                    lambda l: l.account_id.account_type == 'asset_current'
+                )
+                
+                if custom_asset_current:
+                    asset_current_account = custom_asset_current[0].account_id
+                    vals['account_id'] = asset_current_account.id
+
+                        # if not vals.get('date_maturity'):
+                        #     vals['date_maturity'] = move.invoice_date_due or move.invoice_date or fields.Date.today()
+                            
                 if custom_move_lines:
                     receivable_account = custom_move_lines[0].account_id
 

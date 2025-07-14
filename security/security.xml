@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="account_move_custom_company_rule" model="ir.rule">
+        <field name="name">Account Move Custom: multi-company</field>
+        <field name="model_id" ref="remote_operations.model_account_move_custom" />
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+        <field name="groups" eval="[(4, ref('base.group_user'))]" />
+    </record> 
+    
+</odoo>
