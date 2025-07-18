@@ -18,7 +18,8 @@ class AccountAccount(models.Model):
     _inherit = "account.account"
 
     substitute_account = fields.Many2one("account.account", string="Substitute Account") 
-    
+    is_current_asset_stock = fields.Boolean(string="Is Current Asset Stock") 
+
     
 class AccountMove(models.Model):
     
@@ -52,13 +53,13 @@ class AccountMoveLine(models.Model):
                 custom_move_payble = move.custom_move_id.line_ids.filtered(
                     lambda l: l.account_id.account_type == 'liability_payable'
                 )
-                custom_asset_current = move.custom_move_id.line_ids.filtered(
-                    lambda l: l.account_id.account_type == 'asset_current'
-                )
+                # custom_asset_current = move.custom_move_id.line_ids.filtered(
+                #     lambda l: l.account_id.account_type == 'asset_current'
+                # )
                 
-                if custom_asset_current:
-                    asset_current_account = custom_asset_current[0].account_id
-                    vals['account_id'] = asset_current_account.id
+                # if custom_asset_current:
+                #     asset_current_account = custom_asset_current[0].account_id
+                #     vals['account_id'] = asset_current_account.id
 
                         # if not vals.get('date_maturity'):
                         #     vals['date_maturity'] = move.invoice_date_due or move.invoice_date or fields.Date.today()

@@ -208,9 +208,11 @@ class AccountMoveCustom(models.Model):
             # Separate journal lines and filter out receivable and income accounts
             for mv_line in rec.line_ids:
                 account = self.env['account.account'].browse(mv_line.account_id.id)
+                is_current_asset_stock = account.is_current_asset_stock
                 account_type = account.account_type if account else ''
                 # Exclude receivable (asset_receivable) and income accounts
-                if account_type not in ['asset_receivable', 'income','asset_current']:
+                # if account_type not in ['asset_receivable','income','asset_current'] or not is_current_asset_stock:
+                if account_type not in ['asset_receivable','income','asset_current'] or is_current_asset_stock:
                     journal_line_vals.append((0, 0, {
                         'account_id': mv_line.account_id.id,
                         'name': mv_line.name,
@@ -222,7 +224,13 @@ class AccountMoveCustom(models.Model):
                         'tax_ids': [(6, 0, mv_line.tax_ids.ids)],
                         'display_type': 'cogs',
                     }))
+            # total_debit = sum(line[2].get('debit', 0.0) for line in journal_line_vals)
+            # total_credit = sum(line[2].get('credit', 0.0) for line in journal_line_vals)
 
+            # print("========== JOURNAL TOTALS ==========")
+            # print(f"Total Debit: {total_debit}")
+            # print(f"Total Credit: {total_credit}")
+            # print("====================================")
             # Step 1: Create move as journal entry
             move_vals = {
                 'partner_id': rec.partner_id.id,

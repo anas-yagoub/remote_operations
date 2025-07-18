@@ -153,6 +153,7 @@
             <data>
                 <xpath expr="//field[@name='allowed_journal_ids']" position="after">
                     <field name="substitute_account"/>
+                    <field name="is_current_asset_stock" />
                 </xpath>
             </data>
         </field>
