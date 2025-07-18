@@ -8,6 +8,7 @@
         <field name="arch" type="xml">
             <xpath expr="//search" position="inside">
                 <field name="sync_move" />
+                <field name="patient" />
             </xpath>
         </field>
     </record>
@@ -36,8 +37,8 @@
                   <field name="patient" string="Patient Name" optional="show"/>
               </xpath>
 
-              <xpath expr="//field[@name='name']" position="">
-                  <field name="sync_move" optional="hide"/>
+              <xpath expr="//field[@name='name']" position="after">
+                  <field name="sync_move" optional="hide" string="Synced Ref."/>
               </xpath>
 
               <xpath expr="//field[@name='name']" position="attributes">
