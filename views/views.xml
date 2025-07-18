@@ -32,8 +32,12 @@
       <field name="inherit_id" ref="account.view_invoice_tree"/>
       <field name="arch" type="xml">
           <data>
-              <xpath expr="//field[@name='invoice_partner_display_name']" position="after">
-                  <field name="patient" string="Patient Name"/>
+              <xpath expr="//field[@name='invoice_date']" position="before">
+                  <field name="patient" string="Patient Name" optional="show"/>
+              </xpath>
+
+              <xpath expr="//field[@name='name']" position="">
+                  <field name="sync_move" optional="hide"/>
               </xpath>
 
               <xpath expr="//field[@name='name']" position="attributes">
