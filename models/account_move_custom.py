@@ -810,6 +810,7 @@ class AccountMove(models.Model):
                 analytic_distributions = []
                 
             product = self._get_remote_id_if_set(models, db, uid, password, 'product.product', 'name', line.product_id)
+            product_uom = self._get_remote_id_if_set(models, db, uid, password, 'uom.uom', 'name', line.product_uom_id)
 
             move_line_data = {
                 'product_id': product if product else False,  
@@ -823,7 +824,7 @@ class AccountMove(models.Model):
                 'analytic_distribution': [(4, analytic) for analytic in analytic_distributions] if analytic_distributions else None,
                 # 'display_type': line.display_type if line.display_type in ['line_section', 'line_note'] else 'product',
                 'price_subtotal': line.price_subtotal,
-                'product_uom_id': line.product_uom_id.id or None,
+                'product_uom_id': product_uom or None,
                 
             }
             move_lines.append((0, 0, move_line_data))
